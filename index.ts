@@ -1,5 +1,10 @@
-import { registerRootComponent } from 'expo';
+// Reactotron MUST be initialized before anything else.
+// Using require() prevents the bundler from hoisting it after ES imports.
+if (__DEV__) {
+  require("./ReactotronConfig");
+}
 
+import { registerRootComponent } from 'expo';
 import App from './App';
 
 // registerRootComponent calls AppRegistry.registerComponent('main', () => App);
