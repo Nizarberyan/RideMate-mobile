@@ -2,9 +2,9 @@ import Constants from 'expo-constants';
 
 export const getGoogleMapsApiKey = () => {
   return (
+    process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY ||
     Constants.expoConfig?.ios?.config?.googleMapsApiKey ||
-    Constants.expoConfig?.android?.config?.googleMaps?.apiKey ||
-    process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY 
+    Constants.expoConfig?.android?.config?.googleMaps?.apiKey
   );
 };
 
