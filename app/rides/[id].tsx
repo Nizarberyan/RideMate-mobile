@@ -24,7 +24,7 @@ import {
   ChevronRight,
   Info
 } from 'lucide-react-native';
-import { Ride } from '@/src/api/client';
+import { Ride, decodePolyline } from '@/src/api/client';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { Button, Card } from '../../components/ui';
@@ -77,14 +77,13 @@ export default function RideDetails() {
 
   useEffect(() => {
     if (ride?.startLat && ride?.startLng && ride?.endLat && ride?.endLng) {
-      import('../../utils/maps').then(({ getDirections }) => {
-        getDirections(ride.startLat!, ride.startLng!, ride.endLat!, ride.endLng!)
-          .then(res => {
-            if (res?.polyline) {
-              setRoutePolyline(res.polyline);
-            }
-          });
-      });
+      client.rides.getRoute(ride.id)
+        .then(res => {
+          if (res?.encodedPolyline) {
+            setRoutePolyline(decodePolyline(res.encodedPolyline));
+          }
+        })
+        .catch(err => console.warn('Failed to fetch route polyline:', err));
     }
   }, [ride?.startLat, ride?.startLng, ride?.endLat, ride?.endLng]);
 

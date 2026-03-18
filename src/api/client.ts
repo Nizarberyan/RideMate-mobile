@@ -56,7 +56,7 @@ export interface CreateRideInput {
   departureDatetime: string;
   availableSeats: number;
   description?: string;
-  distanceKm?: number;
+  // distanceKm is computed by the backend automatically
 }
 
 export interface UpdateUserInput {
@@ -96,6 +96,54 @@ export interface RideFilters {
   lat?: number;
   lng?: number;
   radius?: number;
+}
+
+export interface RouteResult {
+  distanceKm: number;
+  encodedPolyline: string;
+}
+
+// Decodes a Google Maps encoded polyline into an array of coordinates.
+// Pure math — no API key required.
+export function decodePolyline(
+  encoded: string,
+  precision: number = 5,
+): { latitude: number; longitude: number }[] {
+  const points: { latitude: number; longitude: number }[] = [];
+  let index = 0;
+  const len = encoded.length;
+  let lat = 0;
+  let lng = 0;
+
+  while (index < len) {
+    let b: number;
+    let shift = 0;
+    let result = 0;
+    do {
+      b = encoded.charCodeAt(index++) - 63;
+      result |= (b & 0x1f) << shift;
+      shift += 5;
+    } while (b >= 0x20);
+    const dlat = result & 1 ? ~(result >> 1) : result >> 1;
+    lat += dlat;
+
+    shift = 0;
+    result = 0;
+    do {
+      b = encoded.charCodeAt(index++) - 63;
+      result |= (b & 0x1f) << shift;
+      shift += 5;
+    } while (b >= 0x20);
+    const dlng = result & 1 ? ~(result >> 1) : result >> 1;
+    lng += dlng;
+
+    points.push({
+      latitude: lat / Math.pow(10, precision),
+      longitude: lng / Math.pow(10, precision),
+    });
+  }
+
+  return points;
 }
 
 export const createClient = (options: ClientOptions) => {
@@ -163,6 +211,7 @@ export const createClient = (options: ClientOptions) => {
         return fetchApi(`/rides${queryString ? `?${queryString}` : ""}`);
       },
       getOne: (id: string): Promise<Ride> => fetchApi(`/rides/${id}`),
+      getRoute: (id: string): Promise<RouteResult | null> => fetchApi(`/rides/${id}/route`),
       create: (data: CreateRideInput): Promise<Ride> => fetchApi("/rides", {
         method: "POST",
         body: JSON.stringify(data),

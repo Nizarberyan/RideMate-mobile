@@ -34,6 +34,7 @@ const { width, height } = Dimensions.get("window");
 import { useAuth } from "../../context/AuthContext";
 import { useTheme } from "../../context/ThemeContext";
 import { Button, Input, Card, Toggle } from "../../components/ui";
+import { MapSearchBar } from "../../components/ui/MapSearchBar";
 import Animated, { FadeInDown, FadeInUp } from "react-native-reanimated";
 import { Platform } from "react-native";
 
@@ -509,9 +510,13 @@ export default function Profile() {
             >
               <X size={24} color={theme.text} />
             </TouchableOpacity>
-            <View style={[styles.mapBadge, { backgroundColor: theme.primary }]}>
-              <Text style={styles.mapBadgeText}>Set Home City</Text>
-            </View>
+            <MapSearchBar
+              onSelect={(coords) => {
+                setMapRegion(prev => ({ ...prev, latitude: coords.latitude, longitude: coords.longitude }));
+                mapRef.current?.setCameraPosition({ coordinates: coords, zoom: 15 })
+                  ?.catch(() => {});
+              }}
+            />
           </View>
 
           <View style={styles.mapOverlayBottom}>
@@ -628,8 +633,9 @@ const styles = StyleSheet.create({
     left: 24,
     right: 24,
     flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
+    alignItems: "flex-start",
+    gap: 12,
+    zIndex: 99,
   },
   closeMapButton: {
     width: 48,

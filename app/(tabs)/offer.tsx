@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   StyleSheet,
   Text,
@@ -18,6 +18,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useRouter } from 'expo-router';
 import { useTheme } from '../../context/ThemeContext';
 import { Button, Input, Card } from '../../components/ui';
+import { MapSearchBar } from '../../components/ui/MapSearchBar';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { GoogleMaps, AppleMaps } from 'expo-maps';
 const MapView = Platform.OS === 'ios' ? AppleMaps.View : GoogleMaps.View;
@@ -38,24 +39,10 @@ export default function OfferRide() {
     endLocation: '',
     availableSeats: '3',
     description: '',
-    distanceKm: '',
   });
 
   const [startCoords, setStartCoords] = useState<{ latitude: number, longitude: number } | null>(null);
   const [endCoords, setEndCoords] = useState<{ latitude: number, longitude: number } | null>(null);
-
-  useEffect(() => {
-    if (startCoords && endCoords) {
-      import('../../utils/maps').then(({ getDirections }) => {
-        getDirections(startCoords.latitude, startCoords.longitude, endCoords.latitude, endCoords.longitude)
-          .then(res => {
-            if (res?.distanceKm) {
-              setFormData(prev => ({ ...prev, distanceKm: res.distanceKm.toFixed(1) }));
-            }
-          });
-      });
-    }
-  }, [startCoords, endCoords]);
   const [mapModalVisible, setMapModalVisible] = useState(false);
   const [pickingMode, setPickingMode] = useState<'start' | 'end'>('start');
   const [mapRegion, setMapRegion] = useState({
@@ -181,7 +168,6 @@ export default function OfferRide() {
         departureDatetime: date.toISOString(),
         availableSeats: parseInt(formData.availableSeats),
         description: formData.description,
-        distanceKm: parseInt(formData.distanceKm) || undefined,
       });
 
       setSuccess(true);
@@ -192,7 +178,6 @@ export default function OfferRide() {
           endLocation: '',
           availableSeats: '3',
           description: '',
-          distanceKm: '',
         });
         setStartCoords(null);
         setEndCoords(null);
@@ -679,9 +664,13 @@ export default function OfferRide() {
             >
               <X size={24} color={theme.text} />
             </TouchableOpacity>
-            <View style={[styles.mapBadge, { backgroundColor: theme.primary }]}>
-              <Text style={styles.mapBadgeText}>Set {pickingMode === 'start' ? 'Departure' : 'Destination'}</Text>
-            </View>
+            <MapSearchBar
+              onSelect={(coords, address) => {
+                setMapRegion(prev => ({ ...prev, latitude: coords.latitude, longitude: coords.longitude }));
+                mapRef.current?.setCameraPosition({ coordinates: coords, zoom: 15 })
+                  ?.catch(() => {});
+              }}
+            />
           </View>
 
           <View style={styles.mapOverlayBottom}>
@@ -765,8 +754,9 @@ const styles = StyleSheet.create({
     left: 24,
     right: 24,
     flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    gap: 12,
+    zIndex: 99,
   },
   closeMapButton: {
     width: 48,
