@@ -4,8 +4,7 @@ export const getGoogleMapsApiKey = () => {
   return (
     Constants.expoConfig?.ios?.config?.googleMapsApiKey ||
     Constants.expoConfig?.android?.config?.googleMaps?.apiKey ||
-    process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY ||
-    'AIzaSyBirBHMjQqBegIskSqs_8ThMVgrlDESAr4'
+    process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY 
   );
 };
 

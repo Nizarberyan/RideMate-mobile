@@ -150,6 +150,7 @@ export default function OfferRide() {
           setFormData({ ...formData, startLocation: formatAddress(address[0]) || 'Selected Location' });
         }
       } catch (e) {}
+      setPickingMode('end');
     } else {
       setEndCoords(coords);
       try {
@@ -158,8 +159,8 @@ export default function OfferRide() {
           setFormData({ ...formData, endLocation: formatAddress(address[0]) || 'Selected Location' });
         }
       } catch (e) {}
+      setMapModalVisible(false);
     }
-    setMapModalVisible(false);
   };
 
   const handleSubmit = async () => {
@@ -505,22 +506,13 @@ export default function OfferRide() {
                 entering={FadeInDown.delay(700).duration(800).springify()}
                 style={styles.row}
               >
-                <View style={{ flex: 1, marginRight: 12 }}>
+                <View style={{ flex: 1 }}>
                   <Input
                     label="Seats"
                     value={formData.availableSeats}
                     onChangeText={(text) => setFormData({ ...formData, availableSeats: text })}
                     keyboardType="numeric"
                     placeholder="3"
-                  />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Input
-                    label="Distance (km)"
-                    value={formData.distanceKm}
-                    editable={false}
-                    pointerEvents="none"
-                    placeholder="Auto-calculated"
                   />
                 </View>
               </Animated.View>
