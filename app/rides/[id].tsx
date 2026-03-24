@@ -73,8 +73,12 @@ export default function RideDetails() {
       const data = await client.rides.getOne(id);
       setRide(data);
     } catch (e: any) {
-      Alert.alert("Error", e.message || "Failed to load ride details");
-      router.back();
+      setDialog({
+        visible: true,
+        title: 'Error',
+        message: e.message || "Failed to load ride details",
+        actions: [{ label: 'OK', onPress: () => { dismissDialog(); router.back(); }, style: 'cancel' }],
+      });
     } finally {
       setIsLoading(false);
     }
@@ -83,7 +87,7 @@ export default function RideDetails() {
   const safelyMoveCamera = async (coords: { latitude: number, longitude: number }, zoom = 15) => {
     try {
       if (mapRef.current) {
-        await mapRef.current.setCameraPosition({ coordinates: coords, zoom });
+        await mapRef.current.setCameraPosition({ coordinates: coords, zoom }).catch(() => {});
       }
     } catch (err) {}
   };
@@ -281,11 +285,10 @@ export default function RideDetails() {
             <MapView
               ref={mapRef}
               style={styles.map}
-              onMapLoaded={() => {
-                safelyMoveCamera({ latitude: ride.startLat!, longitude: ride.startLng! }, 11);
-                setTimeout(() => {
-                  safelyMoveCamera({ latitude: ride.startLat!, longitude: ride.startLng! }, 11);
-                }, 400);
+              onMapLoaded={async () => {
+                await safelyMoveCamera({ latitude: ride.startLat!, longitude: ride.startLng! }, 11);
+                await new Promise(resolve => setTimeout(resolve, 400));
+                await safelyMoveCamera({ latitude: ride.startLat!, longitude: ride.startLng! }, 11);
               }}
               uiSettings={{
                 myLocationButtonEnabled: false,

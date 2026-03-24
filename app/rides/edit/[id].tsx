@@ -17,8 +17,9 @@ import { Car, MapPin, Map, Calendar, Plus, AlertCircle, CheckCircle2, Clock, X, 
 import { useAuth } from '../../../context/AuthContext';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useTheme } from '../../../context/ThemeContext';
-import { Button, Input, Card } from '../../../components/ui';
+import { Button, Input, Card, ConfirmDialog } from '../../../components/ui';
 import { MapSearchBar } from '../../../components/ui/MapSearchBar';
+import { MapMarker } from '../../../components/ui/MapMarker';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { GoogleMaps, AppleMaps } from 'expo-maps';
 const MapView = Platform.OS === 'ios' ? AppleMaps.View : GoogleMaps.View;
@@ -36,6 +37,15 @@ export default function EditRide() {
   const { id } = useLocalSearchParams();
   const [isLoadingRide, setIsLoadingRide] = useState(true);
 
+  type DialogConfig = {
+    visible: boolean;
+    title: string;
+    message?: string;
+    actions: { label: string; onPress: () => void; style?: 'default' | 'destructive' | 'cancel' }[];
+  };
+  const [dialog, setDialog] = useState<DialogConfig>({ visible: false, title: '', actions: [] });
+  const dismissDialog = () => setDialog(prev => ({ ...prev, visible: false }));
+
   const [formData, setFormData] = useState({
     startLocation: '',
     endLocation: '',
@@ -45,6 +55,7 @@ export default function EditRide() {
 
   const [startCoords, setStartCoords] = useState<{ latitude: number, longitude: number } | null>(null);
   const [endCoords, setEndCoords] = useState<{ latitude: number, longitude: number } | null>(null);
+  const [initialRegion, setInitialRegion] = useState<{ latitude: number, longitude: number } | null>(null);
   const [mapModalVisible, setMapModalVisible] = useState(false);
   const [pickingMode, setPickingMode] = useState<'start' | 'end'>('start');
   const [mapRegion, setMapRegion] = useState({
@@ -101,8 +112,12 @@ export default function EditRide() {
         setDate(d);
         setDateSelected(true);
       } catch (err: any) {
-        Alert.alert("Error", "Could not load ride details.");
-        router.back();
+        setDialog({
+          visible: true,
+          title: 'Error',
+          message: 'Could not load ride details.',
+          actions: [{ label: 'OK', onPress: () => { dismissDialog(); router.back(); }, style: 'cancel' }],
+        });
       } finally {
         setIsLoadingRide(false);
       }
@@ -113,7 +128,7 @@ export default function EditRide() {
   const safelyMoveCamera = async (coords: { latitude: number, longitude: number }, zoom = 15) => {
     try {
       if (mapRef.current) {
-        await mapRef.current.setCameraPosition({ coordinates: coords, zoom });
+        await mapRef.current.setCameraPosition({ coordinates: coords, zoom }).catch(() => {});
       }
     } catch (err) {}
   };
@@ -131,8 +146,9 @@ export default function EditRide() {
       if (lastKnown) {
         const lat = lastKnown.coords.latitude;
         const lng = lastKnown.coords.longitude;
+        setInitialRegion({ latitude: lat, longitude: lng });
         setMapRegion(prev => ({...prev, latitude: lat, longitude: lng}));
-        safelyMoveCamera({ latitude: lat, longitude: lng });
+        await safelyMoveCamera({ latitude: lat, longitude: lng });
       }
 
       const location = await Location.getCurrentPositionAsync({
@@ -142,8 +158,9 @@ export default function EditRide() {
       if (location) {
         const lat = location.coords.latitude;
         const lng = location.coords.longitude;
+        setInitialRegion({ latitude: lat, longitude: lng });
         setMapRegion(prev => ({...prev, latitude: lat, longitude: lng}));
-        safelyMoveCamera({ latitude: lat, longitude: lng });
+        await safelyMoveCamera({ latitude: lat, longitude: lng });
       }
     } catch (e) {
       console.log("Location fetch skipped or failed");
@@ -174,6 +191,10 @@ export default function EditRide() {
         }
       } catch (e) {}
       setPickingMode('end');
+      if (initialRegion) {
+        setMapRegion(prev => ({ ...prev, latitude: initialRegion.latitude, longitude: initialRegion.longitude }));
+        await safelyMoveCamera(initialRegion);
+      }
     } else {
       setEndCoords(coords);
       try {
@@ -188,7 +209,12 @@ export default function EditRide() {
 
   const handleSubmit = async () => {
     if (!formData.startLocation || !formData.endLocation || !dateSelected || !formData.availableSeats) {
-      Alert.alert("Missing Information", "Please fill in all details including departure, destination, date, and seats.");
+      setDialog({
+        visible: true,
+        title: 'Missing Information',
+        message: 'Please fill in all details including departure, destination, date, and seats.',
+        actions: [{ label: 'OK', onPress: dismissDialog, style: 'default' }],
+      });
       return;
     }
 
@@ -223,7 +249,12 @@ export default function EditRide() {
         router.back();
       }, 2000);
     } catch (e: any) {
-      Alert.alert("Error", e.message || "Failed to update ride");
+      setDialog({
+        visible: true,
+        title: 'Error',
+        message: e.message || 'Failed to update ride',
+        actions: [{ label: 'OK', onPress: dismissDialog, style: 'cancel' }],
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -658,12 +689,10 @@ export default function EditRide() {
           <MapView
             ref={mapRef}
             style={StyleSheet.absoluteFillObject}
-            onMapLoaded={() => {
-              safelyMoveCamera({ latitude: mapRegion.latitude, longitude: mapRegion.longitude });
-              // Retry once in case the modal animation cancelled the Native layout
-              setTimeout(() => {
-                safelyMoveCamera({ latitude: mapRegion.latitude, longitude: mapRegion.longitude });
-              }, 400);
+            onMapLoaded={async () => {
+              await safelyMoveCamera({ latitude: mapRegion.latitude, longitude: mapRegion.longitude });
+              await new Promise(resolve => setTimeout(resolve, 400));
+              await safelyMoveCamera({ latitude: mapRegion.latitude, longitude: mapRegion.longitude });
             }}
             uiSettings={{
               myLocationButtonEnabled: true,
@@ -682,14 +711,8 @@ export default function EditRide() {
                 }));
               }
             }}
-            markers={[{
-              coordinates: {
-                latitude: mapRegion.latitude,
-                longitude: mapRegion.longitude,
-              },
-              color: theme.primary
-            }]}
           />
+          <MapMarker color={pickingMode === 'start' ? theme.primary : '#ef4444'} />
           
           <View style={styles.mapOverlayTop}>
             <TouchableOpacity 
@@ -699,9 +722,9 @@ export default function EditRide() {
               <X size={24} color={theme.text} />
             </TouchableOpacity>
             <MapSearchBar
-              onSelect={(coords: {latitude: number, longitude: number}, address: any) => {
+              onSelect={async (coords: {latitude: number, longitude: number}, address: any) => {
                 setMapRegion(prev => ({ ...prev, latitude: coords.latitude, longitude: coords.longitude }));
-                safelyMoveCamera(coords);
+                await safelyMoveCamera(coords);
               }}
             />
           </View>
@@ -716,6 +739,14 @@ export default function EditRide() {
           </View>
         </View>
       </Modal>
+
+      <ConfirmDialog
+        visible={dialog.visible}
+        title={dialog.title}
+        message={dialog.message}
+        actions={dialog.actions}
+        onDismiss={dismissDialog}
+      />
     </KeyboardAvoidingView>
   );
 }

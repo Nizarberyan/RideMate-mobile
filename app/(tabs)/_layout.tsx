@@ -24,6 +24,7 @@ export default function TabsLayout() {
           fontSize: 10,
           fontWeight: '700',
         },
+        ...({ unmountOnBlur: false } as any),
       }}
     >
       <Tabs.Screen

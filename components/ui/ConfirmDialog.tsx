@@ -27,11 +27,12 @@ interface ConfirmDialogProps {
   visible: boolean;
   title: string;
   message?: string;
+  icon?: React.ReactNode;
   actions: DialogAction[];
   onDismiss?: () => void;
 }
 
-export function ConfirmDialog({ visible, title, message, actions, onDismiss }: ConfirmDialogProps) {
+export function ConfirmDialog({ visible, title, message, icon, actions, onDismiss }: ConfirmDialogProps) {
   const { theme, isDark } = useTheme();
   const insets = useSafeAreaInsets();
 
@@ -80,8 +81,11 @@ export function ConfirmDialog({ visible, title, message, actions, onDismiss }: C
           {/* Drag pill */}
           <View style={[styles.pill, { backgroundColor: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)' }]} />
 
-          {/* Title */}
-          <Text style={[styles.title, { color: theme.text }]}>{title}</Text>
+          {/* Title row — icon inline if provided */}
+          <View style={styles.titleRow}>
+            {icon && <View style={styles.titleIcon}>{icon}</View>}
+            <Text style={[styles.title, { color: theme.text, flex: 1 }]}>{title}</Text>
+          </View>
 
           {/* Message */}
           {message ? (
@@ -158,11 +162,24 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     marginBottom: 28,
   },
+  iconWrapper: {
+    alignSelf: 'flex-start',
+    marginBottom: 16,
+    marginTop: 8,
+  },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 10,
+  },
+  titleIcon: {
+    flexShrink: 0,
+  },
   title: {
     fontSize: 22,
     fontWeight: '900',
     letterSpacing: -0.5,
-    marginBottom: 10,
   },
   message: {
     fontSize: 15,

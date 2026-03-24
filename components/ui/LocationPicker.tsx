@@ -13,7 +13,9 @@ import { GoogleMaps, AppleMaps } from 'expo-maps';
 import * as Location from 'expo-location';
 import { MapPin, X, Check, Navigation, Search } from 'lucide-react-native';
 import { useTheme } from '../../context/ThemeContext';
-import { Button } from './Button';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Button, Input } from './index';
+import { MapMarker } from './MapMarker';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 
 const { width, height } = Dimensions.get('window');
@@ -30,6 +32,7 @@ interface LocationPickerProps {
 
 export function LocationPicker({ label, value, onLocationSelect, placeholder, icon }: LocationPickerProps) {
   const { theme, isDark } = useTheme();
+  const insets = useSafeAreaInsets();
   const [showMap, setShowMap] = useState(false);
   const [loading, setLoading] = useState(false);
   const [selectedCoords, setSelectedCoords] = useState<{ latitude: number; longitude: number } | null>(null);
@@ -42,10 +45,10 @@ export function LocationPicker({ label, value, onLocationSelect, placeholder, ic
   });
   const mapRef = React.useRef<any>(null);
 
-  const safelyMoveCamera = (coords: { latitude: number, longitude: number }, zoom = 15) => {
+  const safelyMoveCamera = async (coords: { latitude: number, longitude: number }, zoom = 15) => {
     try {
       if (mapRef.current) {
-        mapRef.current.setCameraPosition({ coordinates: coords, zoom })?.catch(() => {});
+        await mapRef.current.setCameraPosition({ coordinates: coords, zoom }).catch(() => {});
       }
     } catch (err) {}
   };
@@ -75,7 +78,7 @@ export function LocationPicker({ label, value, onLocationSelect, placeholder, ic
         latitudeDelta: 0.01,
         longitudeDelta: 0.01,
       });
-      safelyMoveCamera(coords);
+      await safelyMoveCamera(coords);
 
       // Reverse geocode initial location
       const reverse = await Location.reverseGeocodeAsync(coords);
@@ -145,10 +148,9 @@ export function LocationPicker({ label, value, onLocationSelect, placeholder, ic
           <MapView
             ref={mapRef}
             style={styles.map}
-            onMapLoaded={() => {
+            onMapLoaded={async () => {
               const coords = selectedCoords ? selectedCoords : { latitude: mapRegion.latitude, longitude: mapRegion.longitude };
-              safelyMoveCamera(coords);
-              setTimeout(() => safelyMoveCamera(coords), 400);
+              await safelyMoveCamera(coords);
             }}
             onCameraMove={(event: any) => {
               const lat = event.nativeEvent?.cameraPosition?.coordinates?.latitude ?? event.coordinates?.latitude;
@@ -166,14 +168,8 @@ export function LocationPicker({ label, value, onLocationSelect, placeholder, ic
                 });
               }
             }}
-            markers={[{
-              coordinates: {
-                latitude: mapRegion.latitude,
-                longitude: mapRegion.longitude,
-              },
-              color: theme.primary
-            }]}
           />
+          <MapMarker />
 
           {/* Header */}
           <View style={[styles.mapHeader, { paddingTop: 50 }]}>
@@ -191,7 +187,7 @@ export function LocationPicker({ label, value, onLocationSelect, placeholder, ic
           </View>
 
           {/* Bottom Action */}
-          <View style={[styles.mapFooter, { paddingBottom: 40 }]}>
+          <View style={[styles.mapFooter, { paddingBottom: Math.max(insets.bottom, 24) }]}>
             <Button
               label="Confirm Location"
               variant="black"

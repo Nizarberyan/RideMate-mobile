@@ -5,7 +5,6 @@ import {
   View,
   ScrollView,
   ActivityIndicator,
-  Alert,
   RefreshControl,
   TouchableOpacity,
   Image,
@@ -28,13 +27,15 @@ import {
   Camera,
   X,
   Map,
+  CheckCircle2,
 } from "lucide-react-native";
 
 const { width, height } = Dimensions.get("window");
 import { useAuth } from "../../context/AuthContext";
 import { useTheme } from "../../context/ThemeContext";
-import { Button, Input, Card, Toggle } from "../../components/ui";
-import { MapSearchBar } from "../../components/ui/MapSearchBar";
+import { Button, Input, Card, Toggle, ConfirmDialog } from "../../components/ui";
+import { MapSearchBar } from '../../components/ui/MapSearchBar';
+import { MapMarker } from '../../components/ui/MapMarker';
 import Animated, { FadeInDown, FadeInUp } from "react-native-reanimated";
 import { Platform } from "react-native";
 
@@ -44,6 +45,16 @@ export default function Profile() {
   const insets = useSafeAreaInsets();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+
+  type DialogConfig = {
+    visible: boolean;
+    title: string;
+    message?: string;
+    icon?: React.ReactNode;
+    actions: { label: string; onPress: () => void; style?: 'default' | 'destructive' | 'cancel' }[];
+  };
+  const [dialog, setDialog] = useState<DialogConfig>({ visible: false, title: '', actions: [] });
+  const dismissDialog = () => setDialog(prev => ({ ...prev, visible: false }));
 
   const [formData, setFormData] = useState({
     name: "",
@@ -113,10 +124,12 @@ export default function Profile() {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
 
     if (status !== "granted") {
-      Alert.alert(
-        "Permission Denied",
-        "Sorry, we need camera roll permissions to make this work!",
-      );
+      setDialog({
+        visible: true,
+        title: 'Permission Needed',
+        message: 'We need access to your photo library to set a profile picture.',
+        actions: [{ label: 'OK', onPress: dismissDialog, style: 'cancel' }],
+      });
       return;
     }
 
@@ -145,7 +158,7 @@ export default function Profile() {
   const safelyMoveCamera = async (coords: { latitude: number, longitude: number }, zoom = 15) => {
     try {
       if (mapRef.current) {
-        await mapRef.current.setCameraPosition({ coordinates: coords, zoom });
+        await mapRef.current.setCameraPosition({ coordinates: coords, zoom }).catch(() => {});
       }
     } catch (err) {}
   };
@@ -164,7 +177,7 @@ export default function Profile() {
           const lat = lastKnown.coords.latitude;
           const lng = lastKnown.coords.longitude;
           setMapRegion(prev => ({...prev, latitude: lat, longitude: lng}));
-          safelyMoveCamera({ latitude: lat, longitude: lng });
+          await safelyMoveCamera({ latitude: lat, longitude: lng });
         }
 
         const location = await Location.getCurrentPositionAsync({
@@ -175,13 +188,13 @@ export default function Profile() {
           const lat = location.coords.latitude;
           const lng = location.coords.longitude;
           setMapRegion(prev => ({...prev, latitude: lat, longitude: lng}));
-          safelyMoveCamera({ latitude: lat, longitude: lng });
+          await safelyMoveCamera({ latitude: lat, longitude: lng });
         }
       } else {
         const lat = formData.latitude;
         const lng = formData.longitude!;
         setMapRegion(prev => ({...prev, latitude: lat, longitude: lng}));
-        safelyMoveCamera({ latitude: lat, longitude: lng });
+        await safelyMoveCamera({ latitude: lat, longitude: lng });
       }
     } catch (e) {
       console.log("Location fetch skipped or failed");
@@ -234,9 +247,20 @@ export default function Profile() {
           user: updatedUser,
         });
       }
-      Alert.alert("Success", "Profile updated successfully!");
+      setDialog({
+        visible: true,
+        title: 'Profile Saved',
+        message: 'Your profile has been updated successfully.',
+        icon: <CheckCircle2 size={26} color="#22c55e" strokeWidth={2.5} />,
+        actions: [{ label: 'Done', onPress: dismissDialog, style: 'default' }],
+      });
     } catch (e: any) {
-      Alert.alert("Error", e.message || "Failed to update profile");
+      setDialog({
+        visible: true,
+        title: 'Update Failed',
+        message: (e as Error).message || 'Something went wrong. Please try again.',
+        actions: [{ label: 'OK', onPress: dismissDialog, style: 'cancel' }],
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -473,11 +497,10 @@ export default function Profile() {
           <MapView
             ref={mapRef}
             style={StyleSheet.absoluteFillObject}
-            onMapLoaded={() => {
-              safelyMoveCamera({ latitude: mapRegion.latitude, longitude: mapRegion.longitude });
-              setTimeout(() => {
-                safelyMoveCamera({ latitude: mapRegion.latitude, longitude: mapRegion.longitude });
-              }, 400);
+            onMapLoaded={async () => {
+              await safelyMoveCamera({ latitude: mapRegion.latitude, longitude: mapRegion.longitude });
+              await new Promise(resolve => setTimeout(resolve, 400));
+              await safelyMoveCamera({ latitude: mapRegion.latitude, longitude: mapRegion.longitude });
             }}
             uiSettings={{
               myLocationButtonEnabled: true,
@@ -496,15 +519,9 @@ export default function Profile() {
                 }));
               }
             }}
-            markers={[{
-              coordinates: {
-                latitude: mapRegion.latitude,
-                longitude: mapRegion.longitude,
-              },
-              color: theme.primary
-            }]}
           />
-
+          <MapMarker />
+          
           <View style={styles.mapOverlayTop}>
             <TouchableOpacity
               style={[
@@ -516,9 +533,9 @@ export default function Profile() {
               <X size={24} color={theme.text} />
             </TouchableOpacity>
             <MapSearchBar
-              onSelect={(coords) => {
+              onSelect={async (coords) => {
                 setMapRegion(prev => ({ ...prev, latitude: coords.latitude, longitude: coords.longitude }));
-                safelyMoveCamera(coords);
+                await safelyMoveCamera(coords);
               }}
             />
           </View>
@@ -533,6 +550,15 @@ export default function Profile() {
           </View>
         </View>
       </Modal>
+
+      <ConfirmDialog
+        visible={dialog.visible}
+        title={dialog.title}
+        message={dialog.message}
+        icon={dialog.icon}
+        actions={dialog.actions}
+        onDismiss={dismissDialog}
+      />
     </View>
   );
 }
