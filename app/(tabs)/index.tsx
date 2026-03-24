@@ -5,12 +5,13 @@ import {
   View,
   ScrollView,
   ActivityIndicator,
-  RefreshControl
+  RefreshControl,
+  TouchableOpacity
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { Ride } from '@/src/api/client';
-import { Car, Leaf, ArrowRight } from 'lucide-react-native';
+import { Ride, Booking } from '@/src/api/client';
+import { Car, Leaf, ArrowRight, MapPin, Calendar, Clock } from 'lucide-react-native';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { Card } from '../../components/ui';
@@ -21,52 +22,155 @@ export default function Dashboard() {
   const router = useRouter();
   const { theme, isDark } = useTheme();
   const insets = useSafeAreaInsets();
-  const [rides, setRides] = useState<Ride[]>([]);
+  
+  const [activeTab, setActiveTab] = useState<'driving' | 'riding'>('riding');
+  const [drivingRides, setDrivingRides] = useState<Ride[]>([]);
+  const [ridingBookings, setRidingBookings] = useState<Booking[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
   const loadDashboardData = useCallback(async () => {
     try {
-      const myRides = await client.rides.getMine();
-      setRides(myRides);
-      console.tron.display({
-        name: '🚗 My Rides Loaded',
-        value: { count: myRides.length, rides: myRides },
-        preview: `${myRides.length} ride(s) fetched`,
-      });
+      if (activeTab === 'driving') {
+        const myRides = await client.rides.getMine();
+        setDrivingRides(myRides);
+      } else {
+        const myBookings = await client.bookings.getMine();
+        setRidingBookings(myBookings);
+      }
     } catch (e) {
-      console.tron.display({
-        name: '❌ Failed to Load Rides',
-        value: e,
-        important: true,
-      });
+      console.error('Failed to load dashboard data', e);
     } finally {
       setIsLoading(false);
       setRefreshing(false);
     }
-  }, [client]);
+  }, [client, activeTab]);
 
   useEffect(() => {
-    console.tron.display({
-      name: '👤 Dashboard Mounted — Current User',
-      value: user,
-      preview: user ? `Logged in as ${user.name}` : 'No user',
-    });
+    setIsLoading(true);
     loadDashboardData();
-  }, [loadDashboardData]);
+  }, [loadDashboardData, activeTab]);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
     loadDashboardData();
   }, [loadDashboardData]);
 
-  if (isLoading && !refreshing) {
-    return (
-      <View style={[styles.center, { backgroundColor: theme.background }]}>
-        <ActivityIndicator size="large" color={theme.primary} />
-      </View>
-    );
-  }
+  const renderDrivingRides = () => {
+    if (drivingRides.length === 0) {
+      return (
+        <Card style={styles.emptyCard} delay={400}>
+          <View style={styles.emptyState}>
+            <Car size={40} color={theme.textMuted} />
+            <Text style={[styles.emptyText, { color: theme.textMuted }]}>No rides offered yet.</Text>
+          </View>
+        </Card>
+      );
+    }
+
+    return drivingRides.map((ride, index) => (
+      <Card 
+        key={ride.id} 
+        style={styles.rideCard}
+        contentStyle={{ padding: 0 }}
+        delay={400 + (index * 100)}
+        onPress={() => router.push(`/rides/${ride.id}`)}
+      >
+        <View style={styles.cardHeader}>
+          <View style={[styles.locationRow, { marginRight: 12 }]}>
+            <Text style={[styles.locationText, { color: theme.text }]} numberOfLines={1} ellipsizeMode="tail">{ride.startLocation}</Text>
+            <ArrowRight size={16} color={theme.textMuted} style={{ marginHorizontal: 8, flexShrink: 0 }} />
+            <Text style={[styles.locationText, { color: theme.text }]} numberOfLines={1} ellipsizeMode="tail">{ride.endLocation}</Text>
+          </View>
+          <View style={[styles.statusBadge, { backgroundColor: isDark ? 'rgba(193, 241, 29, 0.15)' : 'rgba(193, 241, 29, 0.3)' }]}>
+            <Text style={[styles.statusText, { color: isDark ? theme.primary : '#4d7c0f' }]}>{ride.status.toUpperCase()}</Text>
+          </View>
+        </View>
+        <Text style={[styles.cardSubtext, { color: theme.textMuted }]}>
+          {new Date(ride.departureDatetime).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })} at {new Date(ride.departureDatetime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+        </Text>
+        <View style={[styles.cardFooter, { borderTopColor: theme.border }]}>
+          <View style={styles.footerItem}>
+            <Text style={[styles.footerText, { color: theme.textMuted }]}>{ride.availableSeats} seats left</Text>
+          </View>
+          <View style={[styles.bookingsBadge, { backgroundColor: theme.primary }]}>
+            <Text style={[styles.footerTextBold, { color: '#151515' }]}>{ride.bookings?.length || 0} Bookings</Text>
+          </View>
+        </View>
+      </Card>
+    ));
+  };
+
+  const renderRidingBookings = () => {
+    if (ridingBookings.length === 0) {
+      return (
+        <Card style={styles.emptyCard} delay={400}>
+          <View style={styles.emptyState}>
+            <MapPin size={40} color={theme.textMuted} />
+            <Text style={[styles.emptyText, { color: theme.textMuted }]}>No upcoming trips booked.</Text>
+            <TouchableOpacity 
+              style={[styles.searchLink, { backgroundColor: 'rgba(21, 21, 21, 0.05)' }]}
+              onPress={() => router.push('/(tabs)/search')}
+            >
+              <Text style={[styles.searchLinkText, { color: theme.primary }]}>Find a Ride</Text>
+            </TouchableOpacity>
+          </View>
+        </Card>
+      );
+    }
+
+    return ridingBookings.map((booking, index) => {
+      const ride = booking.ride;
+      if (!ride) return null;
+      
+      return (
+        <Card 
+          key={booking.id} 
+          style={styles.rideCard}
+          contentStyle={{ padding: 0 }}
+          delay={400 + (index * 100)}
+          onPress={() => router.push(`/rides/${ride.id}`)}
+        >
+          <View style={styles.cardHeader}>
+            <View style={[styles.locationRow, { marginRight: 12 }]}>
+              <Text style={[styles.locationText, { color: theme.text }]} numberOfLines={1} ellipsizeMode="tail">{ride.startLocation}</Text>
+              <ArrowRight size={16} color={theme.textMuted} style={{ marginHorizontal: 8, flexShrink: 0 }} />
+              <Text style={[styles.locationText, { color: theme.text }]} numberOfLines={1} ellipsizeMode="tail">{ride.endLocation}</Text>
+            </View>
+            <View style={[styles.statusBadge, { backgroundColor: booking.status === 'CONFIRMED' ? (isDark ? 'rgba(193, 241, 29, 0.15)' : 'rgba(193, 241, 29, 0.3)') : 'rgba(239, 68, 68, 0.15)' }]}>
+              <Text style={[styles.statusText, { color: booking.status === 'CONFIRMED' ? (isDark ? theme.primary : '#4d7c0f') : '#ef4444' }]}>
+                {booking.status.toUpperCase()}
+              </Text>
+            </View>
+          </View>
+          
+          <View style={styles.dateRow}>
+            <Calendar size={14} color={theme.textMuted} style={{ marginRight: 6 }} />
+            <Text style={[styles.cardSubtext, { color: theme.textMuted, marginBottom: 0 }]}>
+              {new Date(ride.departureDatetime).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}
+            </Text>
+            <View style={styles.dotSeparator} />
+            <Clock size={14} color={theme.textMuted} style={{ marginRight: 6 }} />
+            <Text style={[styles.cardSubtext, { color: theme.textMuted, marginBottom: 0 }]}>
+              {new Date(ride.departureDatetime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            </Text>
+          </View>
+          
+          <View style={[styles.cardFooter, { borderTopColor: theme.border }]}>
+            <View style={styles.footerItem}>
+              <Text style={[styles.footerText, { color: theme.textMuted }]}>
+                {booking.seatsBooked} {booking.seatsBooked === 1 ? 'Seat' : 'Seats'} Booked
+              </Text>
+            </View>
+            <View style={styles.viewRideBadge}>
+              <Text style={[styles.footerTextBold, { color: theme.text }]}>View Ride</Text>
+              <ArrowRight size={14} color={theme.text} style={{ marginLeft: 6 }} />
+            </View>
+          </View>
+        </Card>
+      );
+    });
+  };
 
   return (
     <View style={[styles.container, { backgroundColor: theme.primary }]}>
@@ -100,51 +204,41 @@ export default function Dashboard() {
         </View>
 
         <View style={styles.mainContent}>
-          <Animated.Text 
-            entering={FadeInDown.delay(400).duration(800).springify()}
-            style={[styles.sectionTitle, { color: theme.text }]}
+          <Animated.View 
+            entering={FadeInDown.delay(300).duration(800).springify()}
+            style={[styles.tabsContainer, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)' }]}
           >
-            Your Rides as Driver
-          </Animated.Text>
-          {rides.length === 0 ? (
-            <Card style={styles.emptyCard} delay={600}>
-              <View style={styles.emptyState}>
-                <Car size={40} color={theme.textMuted} />
-                <Text style={[styles.emptyText, { color: theme.textMuted }]}>No rides offered yet.</Text>
-              </View>
-            </Card>
+            <TouchableOpacity 
+              style={[styles.tabButton, activeTab === 'riding' && [styles.activeTabButton, { backgroundColor: theme.surface }]]}
+              onPress={() => setActiveTab('riding')}
+              activeOpacity={0.8}
+            >
+              <Text style={[styles.tabText, activeTab === 'riding' ? [styles.activeTabText, { color: theme.text }] : { color: theme.textMuted }]}>
+                Riding
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={[styles.tabButton, activeTab === 'driving' && [styles.activeTabButton, { backgroundColor: theme.surface }]]}
+              onPress={() => setActiveTab('driving')}
+              activeOpacity={0.8}
+            >
+              <Text style={[styles.tabText, activeTab === 'driving' ? [styles.activeTabText, { color: theme.text }] : { color: theme.textMuted }]}>
+                Driving
+              </Text>
+            </TouchableOpacity>
+          </Animated.View>
+
+          {isLoading && !refreshing ? (
+            <View style={{ marginTop: 40 }}>
+              <ActivityIndicator size="large" color={theme.primary} />
+            </View>
           ) : (
-            rides.map((ride, index) => (
-              <Card 
-                key={ride.id} 
-                style={styles.rideCard}
-                contentStyle={{ padding: 0 }}
-                delay={600 + (index * 100)}
-                onPress={() => router.push(`/rides/${ride.id}`)}
-              >
-                <View style={styles.cardHeader}>
-                  <View style={[styles.locationRow, { marginRight: 12 }]}>
-                    <Text style={[styles.locationText, { color: theme.text }]} numberOfLines={1} ellipsizeMode="tail">{ride.startLocation}</Text>
-                    <ArrowRight size={16} color={theme.textMuted} style={{ marginHorizontal: 8, flexShrink: 0 }} />
-                    <Text style={[styles.locationText, { color: theme.text }]} numberOfLines={1} ellipsizeMode="tail">{ride.endLocation}</Text>
-                  </View>
-                  <View style={[styles.statusBadge, { backgroundColor: isDark ? 'rgba(193, 241, 29, 0.15)' : 'rgba(193, 241, 29, 0.3)' }]}>
-                    <Text style={[styles.statusText, { color: isDark ? theme.primary : '#4d7c0f' }]}>{ride.status.toUpperCase()}</Text>
-                  </View>
-                </View>
-                <Text style={[styles.cardSubtext, { color: theme.textMuted }]}>
-                  {new Date(ride.departureDatetime).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })} at {new Date(ride.departureDatetime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                </Text>
-                <View style={[styles.cardFooter, { borderTopColor: theme.border }]}>
-                  <View style={styles.footerItem}>
-                    <Text style={[styles.footerText, { color: theme.textMuted }]}>{ride.availableSeats} seats left</Text>
-                  </View>
-                  <View style={[styles.bookingsBadge, { backgroundColor: theme.primary }]}>
-                    <Text style={[styles.footerTextBold, { color: '#151515' }]}>{ride.bookings.length} Bookings</Text>
-                  </View>
-                </View>
-              </Card>
-            ))
+            <Animated.View 
+              key={activeTab} // Forces re-animation when switching tabs
+              entering={FadeInDown.duration(600).springify()}
+            >
+              {activeTab === 'driving' ? renderDrivingRides() : renderRidingBookings()}
+            </Animated.View>
           )}
         </View>
       </ScrollView>
@@ -200,11 +294,32 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     marginLeft: 6,
   },
-  sectionTitle: {
-    fontSize: 22,
+  tabsContainer: {
+    flexDirection: 'row',
+    borderRadius: 20,
+    padding: 4,
+    marginBottom: 24,
+  },
+  tabButton: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  activeTabButton: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  tabText: {
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  activeTabText: {
     fontWeight: '900',
-    marginBottom: 20,
-    letterSpacing: -0.5,
   },
   emptyCard: {
     padding: 0,
@@ -219,6 +334,16 @@ const styles = StyleSheet.create({
     marginTop: 16,
     fontWeight: '700',
     fontSize: 16,
+    marginBottom: 16,
+  },
+  searchLink: {
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 16,
+  },
+  searchLinkText: {
+    fontSize: 14,
+    fontWeight: '900',
   },
   rideCard: {
     padding: 24,
@@ -252,6 +377,18 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     letterSpacing: 0.5,
   },
+  dateRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  dotSeparator: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#9ca3af',
+    marginHorizontal: 8,
+  },
   cardSubtext: {
     fontSize: 14,
     fontWeight: '600',
@@ -277,9 +414,18 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 12,
   },
+  viewRideBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+    backgroundColor: 'rgba(0,0,0,0.05)',
+  },
   footerTextBold: {
     fontSize: 14,
     fontWeight: '900',
   },
 });
+
 

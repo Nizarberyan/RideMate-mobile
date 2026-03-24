@@ -1,17 +1,17 @@
 import React from 'react';
-import { 
-  StyleSheet, 
-  Text, 
-  ActivityIndicator, 
-  ViewStyle, 
-  TextStyle, 
+import {
+  StyleSheet,
+  Text,
+  ActivityIndicator,
+  ViewStyle,
+  TextStyle,
   Pressable,
   PressableProps
 } from 'react-native';
-import Animated, { 
-  useAnimatedStyle, 
-  useSharedValue, 
-  withSpring 
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring
 } from 'react-native-reanimated';
 import { useTheme } from '../../context/ThemeContext';
 
@@ -27,16 +27,16 @@ export interface ButtonProps extends PressableProps {
   textStyle?: TextStyle;
 }
 
-export const Button = ({ 
-  label, 
-  variant = 'primary', 
-  size = 'md', 
-  isLoading, 
-  icon, 
-  style, 
+export const Button = ({
+  label,
+  variant = 'primary',
+  size = 'md',
+  isLoading,
+  icon,
+  style,
   textStyle,
   disabled,
-  ...props 
+  ...props
 }: ButtonProps) => {
   const { theme, isDark } = useTheme();
   const scale = useSharedValue(1);
@@ -44,7 +44,7 @@ export const Button = ({
   const getVariantStyle = () => {
     switch (variant) {
       case 'primary':
-        return { 
+        return {
           backgroundColor: theme.primary,
           shadowColor: theme.primary,
           shadowOffset: { width: 0, height: 4 },
@@ -53,23 +53,23 @@ export const Button = ({
           elevation: 4,
         };
       case 'secondary':
-        return { 
+        return {
           backgroundColor: theme.surface,
           borderColor: theme.border,
           borderWidth: 1
         };
       case 'outline':
-        return { 
+        return {
           backgroundColor: 'transparent',
           borderColor: theme.border,
           borderWidth: 1
         };
       case 'danger':
-        return { 
+        return {
           backgroundColor: isDark ? '#3d1212' : '#fee2e2',
         };
       case 'black':
-        return { 
+        return {
           backgroundColor: isDark ? theme.primary : '#151515',
           shadowColor: '#000',
           shadowOffset: { width: 0, height: 4 },
@@ -78,7 +78,7 @@ export const Button = ({
           elevation: 4,
         };
       case 'brand':
-        return { 
+        return {
           backgroundColor: '#151515',
           shadowColor: '#000',
           shadowOffset: { width: 0, height: 4 },
@@ -150,17 +150,17 @@ export const Button = ({
   };
 
   return (
-    <AnimatedPressable 
+    <AnimatedPressable
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
       style={[
-        styles.button, 
+        styles.button,
         getSizeStyle(),
-        getVariantStyle(), 
+        getVariantStyle(),
         disabled && styles.disabled,
         animatedStyle,
         style
-      ]} 
+      ]}
       disabled={disabled || isLoading}
       {...props}
     >

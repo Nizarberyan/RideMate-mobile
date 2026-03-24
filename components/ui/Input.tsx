@@ -90,8 +90,8 @@ export const Input = ({
           backgroundColor: theme.background, 
         },
         multiline && styles.textArea,
-        inputWrapperStyle, // Moved after internal background to allow override
         animatedWrapperStyle,
+        inputWrapperStyle, // Moved last to allow strict overrides
       ]}>
         {leftIcon && <View style={styles.leftIcon}>{leftIcon}</View>}
         

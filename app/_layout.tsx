@@ -13,7 +13,7 @@ import { ThemeProvider as NavThemeProvider, DefaultTheme, DarkTheme } from '@rea
 
 function AppContent() {
   const { isDark, theme } = useTheme();
-  
+
   const navTheme = {
     ...(isDark ? DarkTheme : DefaultTheme),
     colors: {

@@ -3,7 +3,6 @@ import {
   View,
   TextInput,
   TouchableOpacity,
-  FlatList,
   Text,
   StyleSheet,
   ActivityIndicator,
@@ -12,11 +11,14 @@ import {
 import { Search, X } from 'lucide-react-native';
 import { useTheme } from '../../context/ThemeContext';
 
-const GOOGLE_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY ?? '';
+// Uses OpenStreetMap Nominatim — free, no API key needed
+const NOMINATIM_URL = 'https://nominatim.openstreetmap.org/search';
 
 interface Suggestion {
   place_id: string;
-  description: string;
+  display_name: string;
+  lat: string;
+  lon: string;
 }
 
 interface MapSearchBarProps {
@@ -24,7 +26,7 @@ interface MapSearchBarProps {
 }
 
 export function MapSearchBar({ onSelect }: MapSearchBarProps) {
-  const { theme, isDark } = useTheme();
+  const { theme } = useTheme();
   const [query, setQuery] = useState('');
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [loading, setLoading] = useState(false);
@@ -39,41 +41,32 @@ export function MapSearchBar({ onSelect }: MapSearchBarProps) {
     debounceRef.current = setTimeout(async () => {
       setLoading(true);
       try {
-        const url = `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(text)}&key=${GOOGLE_API_KEY}&language=en`;
-        const res = await fetch(url);
-        const json = await res.json();
-        if (json.predictions) {
-          setSuggestions(json.predictions.map((p: any) => ({
-            place_id: p.place_id,
-            description: p.description,
-          })));
-        }
-      } catch {
+        const url =
+          `${NOMINATIM_URL}?q=${encodeURIComponent(text)}` +
+          `&format=json&limit=5&addressdetails=0`;
+        const res = await fetch(url, {
+          headers: { 'Accept-Language': 'en', 'User-Agent': 'RideMateApp/1.0' },
+        });
+        const json: Suggestion[] = await res.json();
+        setSuggestions(Array.isArray(json) ? json : []);
+      } catch (e) {
         setSuggestions([]);
       } finally {
         setLoading(false);
       }
-    }, 350);
+    }, 400);
   };
 
-  const handleSelect = async (suggestion: Suggestion) => {
+  const handleSelect = (suggestion: Suggestion) => {
     Keyboard.dismiss();
-    setQuery(suggestion.description);
+    // Format a readable label: trim the long OSM display_name to first two segments
+    const short = suggestion.display_name.split(',').slice(0, 3).join(',');
+    setQuery(short);
     setSuggestions([]);
-    setLoading(true);
-    try {
-      const url = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${suggestion.place_id}&fields=geometry&key=${GOOGLE_API_KEY}`;
-      const res = await fetch(url);
-      const json = await res.json();
-      const loc = json.result?.geometry?.location;
-      if (loc) {
-        onSelect({ latitude: loc.lat, longitude: loc.lng }, suggestion.description);
-      }
-    } catch {
-      // silently fail — user can still pan map manually
-    } finally {
-      setLoading(false);
-    }
+    onSelect(
+      { latitude: parseFloat(suggestion.lat), longitude: parseFloat(suggestion.lon) },
+      short,
+    );
   };
 
   const handleClear = () => {
@@ -99,7 +92,11 @@ export function MapSearchBar({ onSelect }: MapSearchBarProps) {
           returnKeyType="search"
         />
         {loading ? (
-          <ActivityIndicator size="small" color={theme.primary} style={{ marginRight: 14 }} />
+          <ActivityIndicator
+            size="small"
+            color={theme.primary}
+            style={{ marginRight: 14 }}
+          />
         ) : query.length > 0 ? (
           <TouchableOpacity onPress={handleClear} style={{ marginRight: 14 }}>
             <X size={18} color={theme.textMuted} />
@@ -107,28 +104,30 @@ export function MapSearchBar({ onSelect }: MapSearchBarProps) {
         ) : null}
       </View>
 
-      {/* Suggestions Dropdown */}
+      {/* Suggestions — flows naturally below input so Android doesn't clip them */}
       {suggestions.length > 0 && (
         <View style={[styles.dropdown, { backgroundColor: theme.surface }]}>
-          <FlatList
-            data={suggestions}
-            keyExtractor={(item) => item.place_id}
-            keyboardShouldPersistTaps="handled"
-            renderItem={({ item, index }) => (
-              <TouchableOpacity
-                style={[
-                  styles.suggestionItem,
-                  index < suggestions.length - 1 && { borderBottomWidth: 1, borderBottomColor: theme.border },
-                ]}
-                onPress={() => handleSelect(item)}
-                activeOpacity={0.7}
+          {suggestions.map((item, index) => (
+            <TouchableOpacity
+              key={item.place_id}
+              style={[
+                styles.suggestionItem,
+                index < suggestions.length - 1 && {
+                  borderBottomWidth: 1,
+                  borderBottomColor: theme.border,
+                },
+              ]}
+              onPress={() => handleSelect(item)}
+              activeOpacity={0.7}
+            >
+              <Text
+                style={[styles.suggestionText, { color: theme.text }]}
+                numberOfLines={2}
               >
-                <Text style={[styles.suggestionText, { color: theme.text }]} numberOfLines={2}>
-                  {item.description}
-                </Text>
-              </TouchableOpacity>
-            )}
-          />
+                {item.display_name}
+              </Text>
+            </TouchableOpacity>
+          ))}
         </View>
       )}
     </View>
@@ -138,7 +137,8 @@ export function MapSearchBar({ onSelect }: MapSearchBarProps) {
 const styles = StyleSheet.create({
   wrapper: {
     flex: 1,
-    zIndex: 99,
+    zIndex: 999,
+    overflow: 'visible',
   },
   inputRow: {
     flexDirection: 'row',
@@ -158,17 +158,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
   },
   dropdown: {
-    position: 'absolute',
-    top: 54,
-    left: 0,
-    right: 0,
+    marginTop: 8,
     borderRadius: 20,
-    maxHeight: 240,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.15,
     shadowRadius: 12,
-    elevation: 10,
+    elevation: 12,
     overflow: 'hidden',
   },
   suggestionItem: {

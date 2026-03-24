@@ -142,12 +142,17 @@ export default function Profile() {
     setFormData({ ...formData, photo: "" });
   };
 
+  const safelyMoveCamera = async (coords: { latitude: number, longitude: number }, zoom = 15) => {
+    try {
+      if (mapRef.current) {
+        await mapRef.current.setCameraPosition({ coordinates: coords, zoom });
+      }
+    } catch (err) {}
+  };
+
   const openCityMap = async () => {
     setMapModalVisible(true);
 
-    if (mapRef.current) {
-        mapRef.current.setCameraPosition({ coordinates: { latitude: mapRegion.latitude, longitude: mapRegion.longitude }, zoom: 15 });
-    }
 
     try {
       if (!formData.latitude) {
@@ -159,7 +164,7 @@ export default function Profile() {
           const lat = lastKnown.coords.latitude;
           const lng = lastKnown.coords.longitude;
           setMapRegion(prev => ({...prev, latitude: lat, longitude: lng}));
-          mapRef.current?.setCameraPosition({ coordinates: { latitude: lat, longitude: lng }, zoom: 15 });
+          safelyMoveCamera({ latitude: lat, longitude: lng });
         }
 
         const location = await Location.getCurrentPositionAsync({
@@ -170,13 +175,13 @@ export default function Profile() {
           const lat = location.coords.latitude;
           const lng = location.coords.longitude;
           setMapRegion(prev => ({...prev, latitude: lat, longitude: lng}));
-          mapRef.current?.setCameraPosition({ coordinates: { latitude: lat, longitude: lng }, zoom: 15 });
+          safelyMoveCamera({ latitude: lat, longitude: lng });
         }
       } else {
         const lat = formData.latitude;
         const lng = formData.longitude!;
         setMapRegion(prev => ({...prev, latitude: lat, longitude: lng}));
-        mapRef.current?.setCameraPosition({ coordinates: { latitude: lat, longitude: lng }, zoom: 15 });
+        safelyMoveCamera({ latitude: lat, longitude: lng });
       }
     } catch (e) {
       console.log("Location fetch skipped or failed");
@@ -469,10 +474,10 @@ export default function Profile() {
             ref={mapRef}
             style={StyleSheet.absoluteFillObject}
             onMapLoaded={() => {
-              mapRef.current?.setCameraPosition({
-                coordinates: { latitude: mapRegion.latitude, longitude: mapRegion.longitude },
-                zoom: 15
-              });
+              safelyMoveCamera({ latitude: mapRegion.latitude, longitude: mapRegion.longitude });
+              setTimeout(() => {
+                safelyMoveCamera({ latitude: mapRegion.latitude, longitude: mapRegion.longitude });
+              }, 400);
             }}
             uiSettings={{
               myLocationButtonEnabled: true,
@@ -513,8 +518,7 @@ export default function Profile() {
             <MapSearchBar
               onSelect={(coords) => {
                 setMapRegion(prev => ({ ...prev, latitude: coords.latitude, longitude: coords.longitude }));
-                mapRef.current?.setCameraPosition({ coordinates: coords, zoom: 15 })
-                  ?.catch(() => {});
+                safelyMoveCamera(coords);
               }}
             />
           </View>

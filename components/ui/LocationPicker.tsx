@@ -42,6 +42,14 @@ export function LocationPicker({ label, value, onLocationSelect, placeholder, ic
   });
   const mapRef = React.useRef<any>(null);
 
+  const safelyMoveCamera = (coords: { latitude: number, longitude: number }, zoom = 15) => {
+    try {
+      if (mapRef.current) {
+        mapRef.current.setCameraPosition({ coordinates: coords, zoom })?.catch(() => {});
+      }
+    } catch (err) {}
+  };
+
   const handleOpenMap = async () => {
     // Reset previous selection so the old marker doesn't flash on screen
     setSelectedCoords(null);
@@ -67,6 +75,7 @@ export function LocationPicker({ label, value, onLocationSelect, placeholder, ic
         latitudeDelta: 0.01,
         longitudeDelta: 0.01,
       });
+      safelyMoveCamera(coords);
 
       // Reverse geocode initial location
       const reverse = await Location.reverseGeocodeAsync(coords);
@@ -137,18 +146,9 @@ export function LocationPicker({ label, value, onLocationSelect, placeholder, ic
             ref={mapRef}
             style={styles.map}
             onMapLoaded={() => {
-              const coords = selectedCoords
-                ? selectedCoords
-                : { latitude: mapRegion.latitude, longitude: mapRegion.longitude };
-              // setCameraPosition returns a Promise — use .catch() to handle async rejections.
-              // If cancelled by the modal slide animation, retry once after it finishes.
-              mapRef.current?.setCameraPosition({ coordinates: coords, zoom: 15 })
-                ?.catch(() => {
-                  setTimeout(() => {
-                    mapRef.current?.setCameraPosition({ coordinates: coords, zoom: 15 })
-                      ?.catch(() => { /* ignore second failure */ });
-                  }, 400);
-                });
+              const coords = selectedCoords ? selectedCoords : { latitude: mapRegion.latitude, longitude: mapRegion.longitude };
+              safelyMoveCamera(coords);
+              setTimeout(() => safelyMoveCamera(coords), 400);
             }}
             onCameraMove={(event: any) => {
               const lat = event.nativeEvent?.cameraPosition?.coordinates?.latitude ?? event.coordinates?.latitude;

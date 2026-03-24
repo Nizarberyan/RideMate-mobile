@@ -13,12 +13,12 @@ import {
   KeyboardAvoidingView
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Car, MapPin, Map, Calendar, Plus, AlertCircle, CheckCircle2, Clock, X } from 'lucide-react-native';
-import { useAuth } from '../../context/AuthContext';
-import { useRouter } from 'expo-router';
-import { useTheme } from '../../context/ThemeContext';
-import { Button, Input, Card } from '../../components/ui';
-import { MapSearchBar } from '../../components/ui/MapSearchBar';
+import { Car, MapPin, Map, Calendar, Plus, AlertCircle, CheckCircle2, Clock, X, ChevronLeft } from 'lucide-react-native';
+import { useAuth } from '../../../context/AuthContext';
+import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useTheme } from '../../../context/ThemeContext';
+import { Button, Input, Card } from '../../../components/ui';
+import { MapSearchBar } from '../../../components/ui/MapSearchBar';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { GoogleMaps, AppleMaps } from 'expo-maps';
 const MapView = Platform.OS === 'ios' ? AppleMaps.View : GoogleMaps.View;
@@ -26,13 +26,15 @@ import * as Location from 'expo-location';
 
 const { width, height } = Dimensions.get('window');
 
-export default function OfferRide() {
+export default function EditRide() {
   const { user, client } = useAuth();
   const { theme, isDark } = useTheme();
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
+  const { id } = useLocalSearchParams();
+  const [isLoadingRide, setIsLoadingRide] = useState(true);
 
   const [formData, setFormData] = useState({
     startLocation: '',
@@ -77,6 +79,36 @@ export default function OfferRide() {
   }, []);
 
   const hasVehicle = !!(user?.vehicleModel && user?.vehiclePlate);
+
+  React.useEffect(() => {
+    if (!id) return;
+    const fetchRide = async () => {
+      try {
+        const ride = await client.rides.getOne(id as string);
+        setFormData({
+          startLocation: ride.startLocation,
+          endLocation: ride.endLocation,
+          availableSeats: ride.availableSeats.toString(),
+          description: ride.description || '',
+        });
+        if (ride.startLat && ride.startLng) {
+          setStartCoords({ latitude: ride.startLat, longitude: ride.startLng });
+        }
+        if (ride.endLat && ride.endLng) {
+          setEndCoords({ latitude: ride.endLat, longitude: ride.endLng });
+        }
+        const d = new Date(ride.departureDatetime);
+        setDate(d);
+        setDateSelected(true);
+      } catch (err: any) {
+        Alert.alert("Error", "Could not load ride details.");
+        router.back();
+      } finally {
+        setIsLoadingRide(false);
+      }
+    };
+    fetchRide();
+  }, [id]);
 
   const safelyMoveCamera = async (coords: { latitude: number, longitude: number }, zoom = 15) => {
     try {
@@ -162,10 +194,11 @@ export default function OfferRide() {
 
     setIsSubmitting(true);
     try {
-      await client.rides.create({
+      await client.rides.update(id as string, {
         startLocation: formData.startLocation,
         startLat: startCoords?.latitude,
         startLng: startCoords?.longitude,
+
         endLocation: formData.endLocation,
         endLat: endCoords?.latitude,
         endLng: endCoords?.longitude,
@@ -187,10 +220,10 @@ export default function OfferRide() {
         setEndCoords(null);
         setDate(new Date());
         setDateSelected(false);
-        router.push('/(tabs)');
+        router.back();
       }, 2000);
     } catch (e: any) {
-      Alert.alert("Error", e.message || "Failed to create ride");
+      Alert.alert("Error", e.message || "Failed to update ride");
     } finally {
       setIsSubmitting(false);
     }
@@ -203,10 +236,10 @@ export default function OfferRide() {
           <CheckCircle2 size={80} color={theme.primary} />
         </Animated.View>
         <Animated.Text entering={FadeInUp.delay(100).springify().damping(15)} style={[styles.successTitle, { color: theme.text }]}>
-          Ride Offered!
+          Ride Updated!
         </Animated.Text>
         <Animated.Text entering={FadeInUp.delay(200).springify().damping(15)} style={[styles.successSub, { color: theme.textMuted }]}>
-          Redirecting to your dashboard...
+          Redirecting back to ride details...
         </Animated.Text>
       </View>
     );
@@ -230,12 +263,21 @@ export default function OfferRide() {
           borderBottomRightRadius: 40,
           marginBottom: 10
         }}>
-          <Animated.Text 
+          <Animated.View 
             entering={FadeInUp.delay(200).duration(800).springify()}
-            style={[styles.headerTitle, { color: '#151515', marginBottom: 8 }]}
+            style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8, gap: 16 }}
           >
-            Offer a Ride
-          </Animated.Text>
+            <TouchableOpacity 
+              onPress={() => router.back()} 
+              style={{ padding: 8, marginLeft: -8 }}
+              activeOpacity={0.7}
+            >
+              <ChevronLeft size={32} color="#151515" />
+            </TouchableOpacity>
+            <Text style={[styles.headerTitle, { color: '#151515' }]}>
+              Edit Ride
+            </Text>
+          </Animated.View>
         </View>
         <View style={{ padding: 24, paddingTop: 10 }}>
           {!hasVehicle ? (
@@ -257,6 +299,10 @@ export default function OfferRide() {
                 />
               </View>
             </Card>
+          ) : isLoadingRide ? (
+            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', marginTop: 100 }}>
+              <ActivityIndicator size="large" color={theme.primary} />
+            </View>
           ) : (
             <View style={styles.form} pointerEvents={isSubmitting ? "none" : "auto"}>
               <Animated.Text 
@@ -482,7 +528,7 @@ export default function OfferRide() {
                   <Input
                     label="Seats"
                     value={formData.availableSeats}
-                    onChangeText={(text) => setFormData({ ...formData, availableSeats: text })}
+                    onChangeText={(text: string) => setFormData({ ...formData, availableSeats: text })}
                     keyboardType="numeric"
                     placeholder="3"
                   />
@@ -493,7 +539,7 @@ export default function OfferRide() {
                 <Input
                   label="Additional Notes"
                   value={formData.description}
-                  onChangeText={(text) => setFormData({ ...formData, description: text })}
+                  onChangeText={(text: string) => setFormData({ ...formData, description: text })}
                   placeholder="Any rules or pickup details?"
                   multiline
                   numberOfLines={3}
@@ -502,10 +548,10 @@ export default function OfferRide() {
 
               <Animated.View entering={FadeInDown.delay(900).duration(800).springify()}>
                 <Button
-                  label="Post Ride Offer"
+                  label="Save Changes"
                   variant="black"
                   size="lg"
-                  icon={<Plus size={24} color={isDark ? theme.primary : '#fff'} />}
+                  icon={<CheckCircle2 size={24} color={isDark ? theme.primary : '#fff'} />}
                   onPress={handleSubmit}
                   isLoading={isSubmitting}
                   style={{ marginTop: 24 }}
@@ -653,7 +699,7 @@ export default function OfferRide() {
               <X size={24} color={theme.text} />
             </TouchableOpacity>
             <MapSearchBar
-              onSelect={(coords, address) => {
+              onSelect={(coords: {latitude: number, longitude: number}, address: any) => {
                 setMapRegion(prev => ({ ...prev, latitude: coords.latitude, longitude: coords.longitude }));
                 safelyMoveCamera(coords);
               }}

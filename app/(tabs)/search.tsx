@@ -159,10 +159,11 @@ export default function SearchScreen() {
               <Animated.View entering={FadeInUp.delay(400).duration(800).springify()}>
                 <Input
                   containerStyle={{ marginBottom: 12 }}
-                  inputWrapperStyle={{ backgroundColor: 'rgba(21, 21, 21, 0.08)', borderWidth: 0 }}
-                  leftIcon={<MapPin size={20} color="#151515" />}
+                  inputWrapperStyle={{ backgroundColor: isDark ? '#151515' : '#ffffff', borderColor: isDark ? '#151515' : '#ffffff' }}
+                  inputStyle={{ color: isDark ? '#ffffff' : '#151515' }}
+                  leftIcon={<MapPin size={20} color={isDark ? "#C1F11D" : "#151515"} />}
                   placeholder="From where?"
-                  placeholderTextColor="rgba(21, 21, 21, 0.4)"
+                  placeholderTextColor={isDark ? "rgba(255, 255, 255, 0.4)" : "rgba(21, 21, 21, 0.4)"}
                   value={searchForm.from}
                   onChangeText={(text) => setSearchForm({ ...searchForm, from: text })}
                 />
@@ -171,10 +172,11 @@ export default function SearchScreen() {
               <Animated.View entering={FadeInUp.delay(500).duration(800).springify()}>
                 <Input
                   containerStyle={{ marginBottom: 12 }}
-                  inputWrapperStyle={{ backgroundColor: 'rgba(21, 21, 21, 0.08)', borderWidth: 0 }}
+                  inputWrapperStyle={{ backgroundColor: isDark ? '#151515' : '#ffffff', borderColor: isDark ? '#151515' : '#ffffff' }}
+                  inputStyle={{ color: isDark ? '#ffffff' : '#151515' }}
                   leftIcon={<MapPin size={20} color="#ef4444" />}
                   placeholder="To where?"
-                  placeholderTextColor="rgba(21, 21, 21, 0.4)"
+                  placeholderTextColor={isDark ? "rgba(255, 255, 255, 0.4)" : "rgba(21, 21, 21, 0.4)"}
                   value={searchForm.to}
                   onChangeText={(text) => setSearchForm({ ...searchForm, to: text })}
                 />
@@ -184,15 +186,15 @@ export default function SearchScreen() {
                 <TouchableOpacity
                   style={[
                     styles.dateSelector, 
-                    { backgroundColor: 'rgba(21, 21, 21, 0.08)' }
+                    { backgroundColor: isDark ? '#151515' : '#ffffff', borderColor: isDark ? '#151515' : '#ffffff', borderWidth: 1.5 }
                   ]}
                   onPress={() => setShowCustomPicker(true)}
                   activeOpacity={0.7}
                 >
-                  <Calendar size={20} color="#151515" />
+                  <Calendar size={20} color={isDark ? "#C1F11D" : "#151515"} />
                   <Text style={[
                     styles.dateText,
-                    { color: searchForm.date ? '#151515' : 'rgba(21, 21, 21, 0.4)' }
+                    { color: searchForm.date ? (isDark ? '#ffffff' : '#151515') : (isDark ? 'rgba(255, 255, 255, 0.4)' : 'rgba(21, 21, 21, 0.4)') }
                   ]}>
                     {searchForm.date
                       ? searchForm.date.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })
@@ -201,7 +203,7 @@ export default function SearchScreen() {
                   </Text>
                   {isSearching && (
                     <TouchableOpacity onPress={clearSearch} style={styles.clearButton}>
-                      <X size={20} color="#151515" />
+                      <X size={20} color={isDark ? "#ffffff" : "#151515"} />
                     </TouchableOpacity>
                   )}
                 </TouchableOpacity>
@@ -210,9 +212,9 @@ export default function SearchScreen() {
               <Animated.View entering={FadeInUp.delay(700).duration(800).springify()} style={{ marginTop: 8 }}>
                 <Button
                   label="Search Rides"
-                  variant="black"
+                  variant={isDark ? "brand" : "black"}
                   size="lg"
-                  icon={<SearchIcon size={20} color={isDark ? theme.primary : '#fff'} />}
+                  icon={<SearchIcon size={20} color={isDark ? "#C1F11D" : "#ffffff"} />}
                   onPress={handleSearch}
                 />
               </Animated.View>
@@ -256,23 +258,18 @@ export default function SearchScreen() {
                   delay={800 + (index * 100)}
                 >
                   <View style={styles.cardHeader}>
-                    <View style={styles.locationContainer}>
-                      <View style={styles.locationRow}>
-                        <Text style={[styles.locationText, { color: theme.text }]}>{ride.startLocation}</Text>
-                        <ArrowRight size={16} color={theme.textMuted} style={{ marginHorizontal: 10 }} />
-                        <Text style={[styles.locationText, { color: theme.text }]}>{ride.endLocation}</Text>
-                      </View>
-                      <Text style={[styles.rideDate, { color: theme.textMuted }]}>
-                        {new Date(ride.departureDatetime).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                      </Text>
-                    </View>
-
-                    <View style={[styles.priceContainer, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)' }]}>
-                      <Text style={[styles.price, { color: theme.text }]}>$25</Text>
+                    <View style={[styles.locationRow, { marginRight: 12 }]}>
+                      <Text style={[styles.locationText, { color: theme.text }]} numberOfLines={1} ellipsizeMode="tail">{ride.startLocation}</Text>
+                      <ArrowRight size={16} color={theme.textMuted} style={{ marginHorizontal: 8, flexShrink: 0 }} />
+                      <Text style={[styles.locationText, { color: theme.text }]} numberOfLines={1} ellipsizeMode="tail">{ride.endLocation}</Text>
                     </View>
                   </View>
+                  
+                  <Text style={[styles.rideDate, { color: theme.textMuted }]}>
+                    {new Date(ride.departureDatetime).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                  </Text>
 
-                  <View style={[styles.divider, { backgroundColor: theme.border }]} />
+                    <View style={[styles.divider, { backgroundColor: theme.border }]} />
 
                   <View style={styles.cardFooter}>
                     <View style={styles.driverInfo}>
@@ -474,6 +471,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
+    marginBottom: 6,
   },
   locationContainer: {
     flex: 1,
@@ -481,15 +479,17 @@ const styles = StyleSheet.create({
   locationRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 6,
+    flex: 1,
   },
   locationText: {
     fontSize: 18,
     fontWeight: '900',
+    flexShrink: 1,
   },
   rideDate: {
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: '700',
+    marginBottom: 10,
   },
   priceContainer: {
     paddingHorizontal: 14,

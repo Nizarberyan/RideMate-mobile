@@ -220,6 +220,9 @@ export const createClient = (options: ClientOptions) => {
         method: "PATCH",
         body: JSON.stringify(data),
       }),
+      cancelRide: (id: string): Promise<void> => fetchApi(`/rides/${id}/cancel`, {
+        method: "POST",
+      }),
       delete: (id: string): Promise<void> => fetchApi(`/rides/${id}`, {
         method: "DELETE",
       }),

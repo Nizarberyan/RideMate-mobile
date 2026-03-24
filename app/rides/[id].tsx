@@ -27,7 +27,7 @@ import {
 import { Ride, decodePolyline } from '@/src/api/client';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
-import { Button, Card } from '../../components/ui';
+import { Button, Card, ConfirmDialog } from '../../components/ui';
 import Animated, { FadeInDown, FadeInUp, FadeInRight, FadeInLeft } from 'react-native-reanimated';
 import { GoogleMaps, AppleMaps } from 'expo-maps';
 const MapView = Platform.OS === 'ios' ? AppleMaps.View : GoogleMaps.View;
@@ -50,6 +50,15 @@ export default function RideDetails() {
   const [isScrollEnabled, setIsScrollEnabled] = useState(true);
   const mapRef = useRef<any>(null);
 
+  type DialogConfig = {
+    visible: boolean;
+    title: string;
+    message?: string;
+    actions: { label: string; onPress: () => void; style?: 'default' | 'destructive' | 'cancel' }[];
+  };
+  const [dialog, setDialog] = useState<DialogConfig>({ visible: false, title: '', actions: [] });
+  const dismissDialog = () => setDialog(prev => ({ ...prev, visible: false }));
+
   const hasCoords = !!(ride?.startLat && ride?.startLng && ride?.endLat && ride?.endLng);
   const mapRegion = hasCoords ? {
     latitude: (ride!.startLat! + ride!.endLat!) / 2,
@@ -71,6 +80,14 @@ export default function RideDetails() {
     }
   }, [id, client, router]);
 
+  const safelyMoveCamera = async (coords: { latitude: number, longitude: number }, zoom = 15) => {
+    try {
+      if (mapRef.current) {
+        await mapRef.current.setCameraPosition({ coordinates: coords, zoom });
+      }
+    } catch (err) {}
+  };
+
   useEffect(() => {
     loadRideDetails();
   }, [loadRideDetails]);
@@ -87,42 +104,124 @@ export default function RideDetails() {
     }
   }, [ride?.startLat, ride?.startLng, ride?.endLat, ride?.endLng]);
 
-  const handleBookRide = async () => {
+  const handleBookRide = () => {
     if (!ride) return;
 
     if (ride.driverId === user?.id) {
-      Alert.alert("Notice", "You cannot book your own ride.");
+      setDialog({
+        visible: true,
+        title: 'Notice',
+        message: 'You cannot book your own ride.',
+        actions: [{ label: 'OK', onPress: dismissDialog, style: 'cancel' }],
+      });
       return;
     }
 
-    Alert.alert(
-      "Confirm Booking",
-      `Do you want to book 1 seat for the ride from ${ride.startLocation} to ${ride.endLocation}?`,
-      [
-        { text: "Cancel", style: "cancel" },
+    setDialog({
+      visible: true,
+      title: 'Confirm Booking',
+      message: `Book 1 seat from ${ride.startLocation} to ${ride.endLocation}?`,
+      actions: [
+        { label: 'Cancel', onPress: dismissDialog, style: 'cancel' },
         {
-          text: "Confirm",
+          label: 'Book Ride',
+          style: 'default',
           onPress: async () => {
-            setBookingStatus("loading");
+            dismissDialog();
+            setBookingStatus('loading');
             try {
-              await client.bookings.create({
-                rideId: ride.id,
-                seatsBooked: 1,
+              await client.bookings.create({ rideId: ride.id, seatsBooked: 1 });
+              setBookingStatus('success');
+              setDialog({
+                visible: true,
+                title: '🎉 Ride Booked!',
+                message: 'Your seat has been reserved. Have a great trip!',
+                actions: [{ label: 'Back to Home', onPress: () => { dismissDialog(); router.push('/(tabs)'); }, style: 'default' }],
               });
-              setBookingStatus("success");
-              Alert.alert("Success", "Ride booked successfully!", [
-                { text: "OK", onPress: () => router.push('/(tabs)/profile') }
-              ]);
             } catch (e: any) {
-              setBookingStatus("error");
-              Alert.alert("Booking Failed", e.message || "Something went wrong");
+              setBookingStatus('error');
+              setDialog({
+                visible: true,
+                title: 'Booking Failed',
+                message: (e as Error).message || 'Something went wrong.',
+                actions: [{ label: 'OK', onPress: dismissDialog, style: 'cancel' }],
+              });
             } finally {
-              setBookingStatus("idle");
+              setBookingStatus('idle');
             }
-          }
-        }
-      ]
-    );
+          },
+        },
+      ],
+    });
+  };
+
+  const handleCancelBooking = () => {
+    if (!myBooking) return;
+    setDialog({
+      visible: true,
+      title: 'Cancel Booking',
+      message: 'Are you sure you want to cancel your booking for this ride?',
+      actions: [
+        { label: 'Keep Booking', onPress: dismissDialog, style: 'cancel' },
+        {
+          label: 'Yes, Cancel',
+          style: 'destructive',
+          onPress: async () => {
+            dismissDialog();
+            setBookingStatus('loading');
+            try {
+              await client.bookings.cancel(myBooking.id);
+              setBookingStatus('success');
+              loadRideDetails();
+              router.push('/(tabs)');
+            } catch (e: any) {
+              setBookingStatus('error');
+              setDialog({
+                visible: true,
+                title: 'Error',
+                message: (e as Error).message || 'Failed to cancel booking.',
+                actions: [{ label: 'OK', onPress: dismissDialog, style: 'cancel' }],
+              });
+            } finally {
+              setBookingStatus('idle');
+            }
+          },
+        },
+      ],
+    });
+  };
+
+  const handleCancelRide = () => {
+    setDialog({
+      visible: true,
+      title: 'Cancel Ride',
+      message: 'Are you sure you want to cancel this ride? All passengers will have their bookings cancelled too.',
+      actions: [
+        { label: 'Keep Ride', onPress: dismissDialog, style: 'cancel' },
+        {
+          label: 'Yes, Cancel Ride',
+          style: 'destructive',
+          onPress: async () => {
+            dismissDialog();
+            setBookingStatus('loading');
+            try {
+              await client.rides.cancelRide(id);
+              router.back();
+            } catch (e: any) {
+              setBookingStatus('error');
+              setDialog({
+                visible: true,
+                title: 'Error',
+                message: (e as Error).message || 'Failed to cancel ride.',
+                actions: [{ label: 'OK', onPress: dismissDialog, style: 'cancel' }],
+              });
+            } finally {
+              setBookingStatus('idle');
+            }
+          },
+        },
+      ],
+    });
   };
 
   if (isLoading) {
@@ -136,6 +235,8 @@ export default function RideDetails() {
   if (!ride) return null;
 
   const isOwner = ride.driverId === user?.id;
+  const myBooking = ride.bookings?.find(b => b.userId === user?.id);
+  const hasBooked = !!myBooking;
   const departureDate = new Date(ride.departureDatetime);
 
   const navigateToUser = (userId: string) => {
@@ -181,13 +282,10 @@ export default function RideDetails() {
               ref={mapRef}
               style={styles.map}
               onMapLoaded={() => {
-                mapRef.current?.setCameraPosition({
-                  coordinates: {
-                    latitude: ride.startLat!,
-                    longitude: ride.startLng!,
-                  },
-                  zoom: 11,
-                });
+                safelyMoveCamera({ latitude: ride.startLat!, longitude: ride.startLng! }, 11);
+                setTimeout(() => {
+                  safelyMoveCamera({ latitude: ride.startLat!, longitude: ride.startLng! }, 11);
+                }, 400);
               }}
               uiSettings={{
                 myLocationButtonEnabled: false,
@@ -395,17 +493,36 @@ export default function RideDetails() {
 
       {/* Fixed Bottom Action */}
       <View style={[styles.bottomAction, { paddingBottom: Math.max(insets.bottom, 20), borderTopColor: theme.border, backgroundColor: theme.background }]}>
-        <View style={styles.priceInfo}>
-          <Text style={[styles.priceLabel, { color: theme.textMuted }]}>Total Price</Text>
-          <Text style={[styles.priceValue, { color: theme.text }]}>$25.00</Text>
-        </View>
-        <View style={{ flex: 1, marginLeft: 20 }}>
+        <View style={{ flex: 1 }}>
           {isOwner ? (
+            <View style={{ flexDirection: 'row', gap: 12 }}>
+              <View style={{ flex: 1 }}>
+                <Button
+                  label="Edit"
+                  variant="outline"
+                  size="lg"
+                  onPress={() => router.push(`/rides/edit/${id}`)}
+                />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Button
+                  label="Cancel"
+                  variant="danger"
+                  size="lg"
+                  disabled={bookingStatus === "loading" || ride.status === "CANCELLED"}
+                  isLoading={bookingStatus === "loading"}
+                  onPress={handleCancelRide}
+                />
+              </View>
+            </View>
+          ) : hasBooked ? (
             <Button
-              label="Edit My Ride"
-              variant="outline"
+              label="Cancel Booking"
+              variant="danger"
               size="lg"
-              onPress={() => Alert.alert("Edit", "Edit functionality coming soon!")}
+              disabled={bookingStatus === "loading"}
+              isLoading={bookingStatus === "loading"}
+              onPress={handleCancelBooking}
             />
           ) : (
             <Button
@@ -419,6 +536,14 @@ export default function RideDetails() {
           )}
         </View>
       </View>
+
+      <ConfirmDialog
+        visible={dialog.visible}
+        title={dialog.title}
+        message={dialog.message}
+        actions={dialog.actions}
+        onDismiss={dismissDialog}
+      />
     </View>
   );
 }
