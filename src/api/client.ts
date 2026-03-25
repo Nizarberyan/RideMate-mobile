@@ -10,6 +10,7 @@ export type User = {
   longitude?: number | null;
   radius: number;
   carbonSavedKg: number;
+  rating: number; // overall rating
   vehicleModel?: string | null;
   vehicleColor?: string | null;
   vehiclePlate?: string | null;
@@ -30,6 +31,8 @@ export type Ride = {
   availableSeats: number;
   status: string;
   description?: string;
+  requirePhoto?: boolean;
+  minRating?: number | null;
   distanceKm?: number;
   bookings: Booking[];
 };
@@ -44,6 +47,30 @@ export type Booking = {
   pickupLocation?: string;
   dropoffLocation?: string;
   ride: Ride;
+  isRated: boolean;
+};
+
+export type Review = {
+  id: string;
+  reviewerId: string;
+  reviewer: User;
+  targetId: string;
+  target: User;
+  bookingId: string;
+  rating: number;
+  comment?: string;
+  role: "DRIVER" | "PASSENGER";
+  createdAt: string;
+};
+
+export type Complaint = {
+  id: string;
+  reporterId: string;
+  targetId: string;
+  bookingId: string;
+  reason: string;
+  status: "PENDING" | "REVIEWED" | "RESOLVED" | "DISMISSED";
+  createdAt: string;
 };
 
 export interface CreateRideInput {
@@ -56,7 +83,8 @@ export interface CreateRideInput {
   departureDatetime: string;
   availableSeats: number;
   description?: string;
-  // distanceKm is computed by the backend automatically
+  requirePhoto?: boolean;
+  minRating?: number;
 }
 
 export interface UpdateUserInput {
@@ -195,6 +223,20 @@ export const createClient = (options: ClientOptions) => {
     users: {
       getOne: (id: string): Promise<User> => fetchApi(`/users/${id}`),
     },
+    reviews: {
+      create: (data: { bookingId: string; targetId: string; rating: number; comment?: string; role: "DRIVER" | "PASSENGER" }): Promise<Review> => fetchApi("/reviews", {
+        method: "POST",
+        body: JSON.stringify(data),
+      }),
+      getForUser: (userId: string): Promise<Review[]> => fetchApi(`/reviews/user/${userId}`),
+    },
+    complaints: {
+      create: (data: { bookingId: string; targetId: string; reason: string }): Promise<Complaint> => fetchApi("/complaints", {
+        method: "POST",
+        body: JSON.stringify(data),
+      }),
+      getMine: (): Promise<Complaint[]> => fetchApi("/complaints/mine"),
+    },
     rides: {
       getMine: (): Promise<Ride[]> => fetchApi("/rides/mine"),
       getAll: (filters?: RideFilters): Promise<Ride[]> => {
@@ -229,12 +271,18 @@ export const createClient = (options: ClientOptions) => {
     },
     bookings: {
       getMine: (): Promise<Booking[]> => fetchApi("/bookings"),
-      create: (data: { rideId: string; seatsBooked: number; pickupLocation?: string; dropoffLocation?: string }): Promise<Booking> => fetchApi("/bookings", {
+      create: (data: { rideId: string; seatsBooked: number; pickupLocation?: string; dropoffLocation?: string; passengerNotes?: string }): Promise<Booking> => fetchApi("/bookings", {
         method: "POST",
         body: JSON.stringify(data),
       }),
-      cancel: (id: string): Promise<void> => fetchApi(`/bookings/${id}`, {
+      cancel: (id: string): Promise<Booking> => fetchApi(`/bookings/${id}`, {
         method: "DELETE",
+      }),
+      confirm: (id: string): Promise<Booking> => fetchApi(`/bookings/${id}/confirm`, {
+        method: "POST",
+      }),
+      reject: (id: string): Promise<Booking> => fetchApi(`/bookings/${id}/reject`, {
+        method: "POST",
       }),
     },
   };

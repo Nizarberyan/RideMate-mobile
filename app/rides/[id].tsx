@@ -22,7 +22,10 @@ import {
   ShieldCheck, 
   Leaf,
   ChevronRight,
-  Info
+  Info,
+  Star,
+  UserCircle2,
+  AlertCircle,
 } from 'lucide-react-native';
 import { Ride, decodePolyline } from '@/src/api/client';
 import { useAuth } from '../../context/AuthContext';
@@ -288,9 +291,22 @@ export default function RideDetails() {
               ref={mapRef}
               style={styles.map}
               onMapLoaded={async () => {
-                await safelyMoveCamera({ latitude: ride.startLat!, longitude: ride.startLng! }, 11);
-                await new Promise(resolve => setTimeout(resolve, 400));
-                await safelyMoveCamera({ latitude: ride.startLat!, longitude: ride.startLng! }, 11);
+                try {
+                  if (!mapRef.current) return;
+                  const centerLat = (ride.startLat! + ride.endLat!) / 2;
+                  const centerLng = (ride.startLng! + ride.endLng!) / 2;
+                  const latDelta = Math.abs(ride.startLat! - ride.endLat!);
+                  const lngDelta = Math.abs(ride.startLng! - ride.endLng!);
+                  const maxDelta = Math.max(latDelta, lngDelta, 0.005);
+                  // Approximate zoom: zoom = log2(360 / delta) - 1 with padding
+                  const zoom = Math.max(5, Math.min(15, Math.log2(360 / maxDelta) - 1.5));
+                  await mapRef.current.setCameraPosition({
+                    coordinates: { latitude: centerLat, longitude: centerLng },
+                    zoom,
+                  });
+                } catch {
+                  // Silently handle animation cancellation during unmount
+                }
               }}
               uiSettings={{
                 myLocationButtonEnabled: false,
@@ -389,6 +405,12 @@ export default function RideDetails() {
                 <View style={styles.nameRow}>
                   <Text style={[styles.driverName, { color: theme.text }]}>{ride.driver?.name}</Text>
                   <ShieldCheck size={16} color={theme.primary} style={{ marginLeft: 6 }} />
+                  <View style={styles.driverRating}>
+                    <Star size={14} color="#FFD700" fill="#FFD700" />
+                    <Text style={[styles.driverRatingText, { color: theme.text }]}>
+                      {ride.driver?.rating ? ride.driver.rating.toFixed(1) : "N/A"}
+                    </Text>
+                  </View>
                 </View>
                 <View style={styles.ratingRow}>
                   <Leaf size={14} color="#10b981" />
@@ -421,6 +443,35 @@ export default function RideDetails() {
                 </Text>
               </View>
             </View>
+
+            {/* Booking Requirements */}
+            {(ride.requirePhoto || ride.minRating) && (
+              <View style={[styles.requirementsBox, { backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)', borderColor: theme.border }]}>
+                <Text style={[styles.requirementsTitle, { color: theme.text }]}>Booking Requirements</Text>
+                <View style={styles.requirementBadges}>
+                  {ride.requirePhoto && (
+                    <View style={[styles.reqBadge, { backgroundColor: user?.photo ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)' }]}>
+                      <UserCircle2 size={14} color={user?.photo ? '#10b981' : '#ef4444'} />
+                      <Text style={[styles.reqBadgeText, { color: user?.photo ? '#10b981' : '#ef4444' }]}>Verified Photo</Text>
+                    </View>
+                  )}
+                  {ride.minRating && (
+                    <View style={[styles.reqBadge, { backgroundColor: (user?.rating || 0) >= ride.minRating ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)' }]}>
+                      <Star size={14} color={(user?.rating || 0) >= ride.minRating ? '#10b981' : '#ef4444'} />
+                      <Text style={[styles.reqBadgeText, { color: (user?.rating || 0) >= ride.minRating ? '#10b981' : '#ef4444' }]}>Rating {ride.minRating}+</Text>
+                    </View>
+                  )}
+                </View>
+                {!isOwner && !hasBooked && (
+                  (ride.requirePhoto && !user?.photo) || (ride.minRating && (user?.rating || 0) < ride.minRating)
+                ) && (
+                  <View style={styles.warningBox}>
+                    <AlertCircle size={14} color="#ef4444" />
+                    <Text style={styles.warningText}>You don't meet the driver's requirements.</Text>
+                  </View>
+                )}
+              </View>
+            )}
           </Card>
         </Animated.View>
 
@@ -466,28 +517,80 @@ export default function RideDetails() {
                 Passengers ({ride.bookings.length})
               </Text>
               <View style={styles.passengersList}>
-                {ride.bookings.map((booking, index) => (
-                  <Animated.View 
-                    key={booking.id}
-                    entering={FadeInDown.delay(600 + (index * 100)).duration(600).springify()}
-                  >
-                    <TouchableOpacity 
-                      style={[styles.passengerItem, { backgroundColor: theme.surface }]}
-                      onPress={() => navigateToUser(booking.userId)}
+                {ride.bookings.map((booking, index) => {
+                  const statusColors: Record<string, string> = {
+                    PENDING: '#f59e0b',
+                    CONFIRMED: '#10b981',
+                    CANCELLED: theme.textMuted,
+                    COMPLETED: '#6366f1',
+                  };
+                  const statusColor = statusColors[booking.status] ?? theme.textMuted;
+
+                  return (
+                    <Animated.View
+                      key={booking.id}
+                      entering={FadeInDown.delay(600 + (index * 100)).duration(600).springify()}
+                      style={[styles.passengerCard, { backgroundColor: theme.surface }]}
                     >
-                      <View style={[styles.passengerAvatar, { backgroundColor: theme.primary }]}>
-                        {booking.user?.photo ? (
-                          <Image source={{ uri: booking.user.photo }} style={styles.avatarImage} />
-                        ) : (
-                          <Text style={styles.passengerAvatarText}>{booking.user?.name?.charAt(0) || 'U'}</Text>
-                        )}
-                      </View>
-                      <Text style={[styles.passengerName, { color: theme.text }]} numberOfLines={1}>
-                        {booking.user?.name?.split(' ')[0]}
-                      </Text>
-                    </TouchableOpacity>
-                  </Animated.View>
-                ))}
+                      {/* Passenger info row */}
+                      <TouchableOpacity
+                        style={styles.passengerInfoRow}
+                        onPress={() => navigateToUser(booking.userId)}
+                      >
+                        <View style={[styles.passengerAvatar, { backgroundColor: theme.primary }]}>
+                          {booking.user?.photo ? (
+                            <Image source={{ uri: booking.user.photo }} style={styles.avatarImage} />
+                          ) : (
+                            <Text style={styles.passengerAvatarText}>{booking.user?.name?.charAt(0) || 'U'}</Text>
+                          )}
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Text style={[styles.passengerName, { color: theme.text }]} numberOfLines={1}>
+                            {booking.user?.name || 'Passenger'}
+                          </Text>
+                          <Text style={{ fontSize: 11, fontWeight: '700', color: statusColor, marginTop: 2 }}>
+                            {booking.status}
+                          </Text>
+                        </View>
+                        <Text style={{ fontSize: 13, fontWeight: '700', color: theme.textMuted }}>
+                          {booking.seatsBooked} seat{booking.seatsBooked !== 1 ? 's' : ''}
+                        </Text>
+                      </TouchableOpacity>
+
+                      {/* Driver action buttons — only for PENDING bookings */}
+                      {isOwner && booking.status === 'PENDING' && (
+                        <View style={[styles.bookingActions, { borderTopColor: theme.border }]}>
+                          <TouchableOpacity
+                            style={[styles.actionBtn, { backgroundColor: 'rgba(16,185,129,0.1)' }]}
+                            onPress={async () => {
+                              try {
+                                await client.bookings.confirm(booking.id);
+                                loadRideDetails();
+                              } catch (e: any) {
+                                setDialog({ visible: true, title: 'Error', message: e.message, actions: [{ label: 'OK', onPress: dismissDialog, style: 'cancel' }] });
+                              }
+                            }}
+                          >
+                            <Text style={{ fontSize: 13, fontWeight: '800', color: '#10b981' }}>✓ Confirm</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            style={[styles.actionBtn, { backgroundColor: 'rgba(239,68,68,0.08)' }]}
+                            onPress={async () => {
+                              try {
+                                await client.bookings.reject(booking.id);
+                                loadRideDetails();
+                              } catch (e: any) {
+                                setDialog({ visible: true, title: 'Error', message: e.message, actions: [{ label: 'OK', onPress: dismissDialog, style: 'cancel' }] });
+                              }
+                            }}
+                          >
+                            <Text style={{ fontSize: 13, fontWeight: '800', color: '#ef4444' }}>✕ Reject</Text>
+                          </TouchableOpacity>
+                        </View>
+                      )}
+                    </Animated.View>
+                  );
+                })}
               </View>
             </View>
           )}
@@ -531,10 +634,22 @@ export default function RideDetails() {
             />
           ) : (
             <Button
-              label={ride.availableSeats > 0 ? "Book Ride" : "Fully Booked"}
-              variant="black"
+              label={
+                ride.availableSeats === 0 ? "Fully Booked" :
+                (ride.requirePhoto && !user?.photo) || (ride.minRating && (user?.rating || 0) < ride.minRating)
+                ? "Locked" : "Book Ride"
+              }
+              variant={
+                (ride.requirePhoto && !user?.photo) || (ride.minRating && (user?.rating || 0) < ride.minRating)
+                ? "outline" : "black"
+              }
               size="lg"
-              disabled={ride.availableSeats === 0 || bookingStatus === "loading"}
+              disabled={
+                ride.availableSeats === 0 || 
+                bookingStatus === "loading" ||
+                (ride.requirePhoto && !user?.photo) || 
+                (ride.minRating && (user?.rating || 0) < ride.minRating)
+              }
               isLoading={bookingStatus === "loading"}
               onPress={handleBookRide}
             />
@@ -777,8 +892,17 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
   passengersList: {
+    flexDirection: 'column',
+    gap: 10,
+  },
+  passengerCard: {
+    borderRadius: 20,
+    overflow: 'hidden',
+  },
+  passengerInfoRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
+    alignItems: 'center',
+    padding: 14,
     gap: 12,
   },
   passengerItem: {
@@ -788,6 +912,18 @@ const styles = StyleSheet.create({
     paddingRight: 16,
     borderRadius: 20,
     gap: 10,
+  },
+  bookingActions: {
+    flexDirection: 'row',
+    gap: 8,
+    padding: 12,
+    borderTopWidth: 1,
+  },
+  actionBtn: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 14,
+    alignItems: 'center',
   },
   passengerAvatar: {
     width: 32,
@@ -827,5 +963,60 @@ const styles = StyleSheet.create({
   priceValue: {
     fontSize: 24,
     fontWeight: '900',
-  }
+  },
+  driverRating: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginLeft: 12,
+    backgroundColor: 'rgba(255, 215, 0, 0.1)',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 8,
+    gap: 4,
+  },
+  driverRatingText: {
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  requirementsBox: {
+    marginTop: 20,
+    padding: 16,
+    borderRadius: 20,
+    borderWidth: 1,
+  },
+  requirementsTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+    marginBottom: 12,
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+  },
+  requirementBadges: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  reqBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+    gap: 6,
+  },
+  reqBadgeText: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  warningBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 12,
+    gap: 6,
+  },
+  warningText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#ef4444',
+  },
 });

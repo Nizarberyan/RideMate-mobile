@@ -87,7 +87,7 @@ export const Input = ({
       <AnimatedView style={[
         styles.inputWrapper, 
         { 
-          backgroundColor: theme.background, 
+          backgroundColor: theme.surface, 
         },
         multiline && styles.textArea,
         animatedWrapperStyle,

@@ -12,6 +12,7 @@ import {
   Dimensions,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useRouter } from "expo-router";
 import * as SecureStore from "expo-secure-store";
 import * as ImagePicker from "expo-image-picker";
 import { GoogleMaps, AppleMaps } from 'expo-maps';
@@ -28,6 +29,9 @@ import {
   X,
   Map,
   CheckCircle2,
+  Star,
+  MessageSquare,
+  ChevronRight,
 } from "lucide-react-native";
 
 const { width, height } = Dimensions.get("window");
@@ -40,11 +44,14 @@ import Animated, { FadeInDown, FadeInUp } from "react-native-reanimated";
 import { Platform } from "react-native";
 
 export default function Profile() {
+  const router = useRouter();
   const { user, client, signIn, signOut } = useAuth();
   const { theme, isDark, toggleTheme } = useTheme();
   const insets = useSafeAreaInsets();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [reviews, setReviews] = useState<any[]>([]);
+  const [isLoadingReviews, setIsLoadingReviews] = useState(false);
 
   type DialogConfig = {
     visible: boolean;
@@ -91,10 +98,16 @@ export default function Profile() {
           user: updatedUser,
         });
       }
+      
+      // Load reviews
+      setIsLoadingReviews(true);
+      const userReviews = await client.reviews.getForUser(updatedUser.id);
+      setReviews(userReviews);
     } catch (e) {
       console.error("Failed to refresh profile:", e);
     } finally {
       setRefreshing(false);
+      setIsLoadingReviews(false);
     }
   }, [client, signIn]);
 
@@ -178,7 +191,7 @@ export default function Profile() {
         if (lastKnown) {
           const lat = lastKnown.coords.latitude;
           const lng = lastKnown.coords.longitude;
-          setMapRegion(prev => ({...prev, latitude: lat, longitude: lng}));
+          setMapRegion(prev => ({ ...prev, latitude: lat, longitude: lng }));
           await safelyMoveCamera({ latitude: lat, longitude: lng });
         }
 
@@ -189,13 +202,13 @@ export default function Profile() {
         if (location) {
           const lat = location.coords.latitude;
           const lng = location.coords.longitude;
-          setMapRegion(prev => ({...prev, latitude: lat, longitude: lng}));
+          setMapRegion(prev => ({ ...prev, latitude: lat, longitude: lng }));
           await safelyMoveCamera({ latitude: lat, longitude: lng });
         }
       } else {
         const lat = formData.latitude;
         const lng = formData.longitude!;
-        setMapRegion(prev => ({...prev, latitude: lat, longitude: lng}));
+        setMapRegion(prev => ({ ...prev, latitude: lat, longitude: lng }));
         await safelyMoveCamera({ latitude: lat, longitude: lng });
       }
     } catch (e) {
@@ -223,7 +236,7 @@ export default function Profile() {
           city: address[0].city || address[0].region || "",
         }));
       }
-    } catch (e) {}
+    } catch (e) { }
 
     setMapModalVisible(false);
   };
@@ -301,6 +314,13 @@ export default function Profile() {
           style={styles.profileHeader}
         >
           <TouchableOpacity
+            style={[styles.settingsButton, { backgroundColor: theme.surface }]}
+            onPress={() => router.push('/user/settings')}
+            activeOpacity={0.8}
+          >
+            <Settings size={22} color={theme.text} />
+          </TouchableOpacity>
+          <TouchableOpacity
             style={[styles.avatarContainer, { shadowColor: theme.primary }]}
             onPress={pickImage}
             activeOpacity={0.8}
@@ -341,122 +361,177 @@ export default function Profile() {
           <Text style={[styles.userEmail, { color: theme.textMuted }]}>
             {user?.email}
           </Text>
+          
+          <View style={styles.ratingBadge}>
+            <Star size={18} color="#FFD700" fill="#FFD700" />
+            <Text style={[styles.ratingText, { color: theme.text }]}>
+              {user?.rating ? user.rating.toFixed(1) : "No rating"}
+            </Text>
+            {user?.rating ? (
+              <Text style={[styles.ratingCount, { color: theme.textMuted }]}>
+                ({reviews.length})
+              </Text>
+            ) : null}
+          </View>
         </Animated.View>
 
-        <Card
-          title="App Settings"
-          subTitle="Customize your app experience"
-          icon={<Settings size={20} color={theme.text} />}
-          style={styles.card}
-          delay={400}
-        >
-          <Toggle
-            label="Dark Mode"
-            subLabel="Switch between light and dark themes"
-            value={isDark}
-            onValueChange={toggleTheme}
-          />
-        </Card>
-
-        <Card
-          title="General Information"
-          subTitle="Manage your public profile details"
-          icon={<UserIcon size={20} color={theme.text} />}
-          style={styles.card}
-          delay={500}
-        >
-          <Input
-            label="Full Name"
-            value={formData.name}
-            onChangeText={(text) => setFormData({ ...formData, name: text })}
-            placeholder="e.g. John Doe"
-          />
-
-          <View style={styles.inputWithButton}>
-            <View style={{ flex: 1 }}>
-              <Input
-                label="Home City"
-                leftIcon={<MapPin size={20} color={theme.primary} />}
-                value={formData.city}
-                onChangeText={(text) =>
-                  setFormData({ ...formData, city: text })
-                }
-                placeholder="e.g. San Francisco"
-              />
-            </View>
-            <TouchableOpacity
-              style={[
-                styles.mapButton,
-                {
-                  backgroundColor: isDark
-                    ? "rgba(255,255,255,0.05)"
-                    : "#f3f4f6",
-                },
-              ]}
-              onPress={openCityMap}
-            >
-              <Map size={20} color={theme.primary} />
-            </TouchableOpacity>
-          </View>
-
-          <Input
-            label="Search Radius (km)"
-            leftIcon={<Settings size={20} color={theme.primary} />}
-            value={formData.radius}
-            onChangeText={(text) => setFormData({ ...formData, radius: text })}
-            placeholder="e.g. 50"
-            keyboardType="numeric"
-          />
-
-          <Input
-            label="Bio"
-            value={formData.bio}
-            onChangeText={(text) => setFormData({ ...formData, bio: text })}
-            placeholder="Share a bit about yourself with the community..."
-            multiline
-            numberOfLines={4}
-          />
-        </Card>
-
-        <Card
-          title="Vehicle Details"
-          subTitle="Add your car info to start hosting rides"
-          icon={<Car size={20} color={theme.text} />}
-          style={styles.card}
-          delay={600}
-        >
-          <Input
-            label="Vehicle Model"
-            value={formData.vehicleModel}
-            onChangeText={(text) =>
-              setFormData({ ...formData, vehicleModel: text })
-            }
-            placeholder="e.g. Tesla Model 3"
-          />
-
-          <View style={styles.row}>
-            <View style={{ flex: 1, marginRight: 12 }}>
-              <Input
-                label="Color"
-                value={formData.vehicleColor}
-                onChangeText={(text) =>
-                  setFormData({ ...formData, vehicleColor: text })
-                }
-                placeholder="e.g. Silver"
-              />
+        <Animated.View entering={FadeInDown.delay(550).duration(800).springify()} style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <View style={[styles.sectionIcon, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)' }]}>
+              <MessageSquare size={20} color={theme.text} />
             </View>
             <View style={{ flex: 1 }}>
-              <Input
-                label="License Plate"
-                value={formData.vehiclePlate}
-                onChangeText={(text) =>
-                  setFormData({ ...formData, vehiclePlate: text })
-                }
-                placeholder="e.g. ABC-1234"
-              />
+              <Text style={[styles.sectionTitle, { color: theme.text }]}>Reviews</Text>
+              <Text style={[styles.sectionSubtitle, { color: theme.textMuted }]}>What others are saying about you</Text>
+            </View>
+            {reviews.length > 3 && (
+              <TouchableOpacity onPress={() => router.push({ pathname: '/rides/user-reviews', params: { userId: user?.id } })}>
+                <Text style={{ color: theme.primary, fontWeight: '700' }}>See All</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+
+          <View style={styles.sectionContent}>
+            {isLoadingReviews ? (
+              <ActivityIndicator color={theme.primary} />
+            ) : reviews.length > 0 ? (
+              reviews.slice(0, 3).map((review, idx) => (
+                <View key={review.id} style={[styles.reviewItem, { borderBottomColor: theme.border, borderBottomWidth: idx === reviews.slice(0, 3).length - 1 ? 0 : 1 }]}>
+                  <View style={styles.reviewHeader}>
+                    <View style={styles.reviewAuthor}>
+                      <Image 
+                        source={review.reviewer.photo ? { uri: review.reviewer.photo } : require('../../assets/icon.png')} 
+                        style={styles.reviewAvatar} 
+                      />
+                      <View>
+                        <Text style={[styles.reviewName, { color: theme.text }]}>{review.reviewer.name}</Text>
+                        <Text style={[styles.reviewDate, { color: theme.textMuted }]}>
+                          {new Date(review.createdAt).toLocaleDateString()}
+                        </Text>
+                      </View>
+                    </View>
+                    <View style={styles.reviewStars}>
+                      {[1, 2, 3, 4, 5].map(s => (
+                        <Star key={s} size={12} color={s <= review.rating ? "#FFD700" : theme.textMuted} fill={s <= review.rating ? "#FFD700" : "transparent"} />
+                      ))}
+                    </View>
+                  </View>
+                  {review.comment ? (
+                    <Text style={[styles.reviewComment, { color: theme.text }]}>{review.comment}</Text>
+                  ) : null}
+                </View>
+              ))
+            ) : (
+              <View style={styles.emptyReviews}>
+                <Text style={{ color: theme.textMuted, fontStyle: 'italic' }}>No reviews yet</Text>
+              </View>
+            )}
+          </View>
+        </Animated.View>
+
+        <Animated.View entering={FadeInDown.delay(500).duration(800).springify()} style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <View style={[styles.sectionIcon, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)' }]}>
+              <UserIcon size={20} color={theme.text} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.sectionTitle, { color: theme.text }]}>General Information</Text>
+              <Text style={[styles.sectionSubtitle, { color: theme.textMuted }]}>Manage your public profile details</Text>
             </View>
           </View>
-        </Card>
+
+          <View style={styles.sectionContent}>
+            <Input
+              label="Full Name"
+              value={formData.name}
+              onChangeText={(text) => setFormData({ ...formData, name: text })}
+              placeholder="e.g. John Doe"
+            />
+
+            <View style={styles.inputWithButton}>
+              <View style={{ flex: 1 }}>
+                <Input
+                  label="Home City"
+                  leftIcon={<MapPin size={20} color={theme.primary} />}
+                  value={formData.city}
+                  onChangeText={(text) =>
+                    setFormData({ ...formData, city: text })
+                  }
+                  placeholder="e.g. San Francisco"
+                  containerStyle={{ marginBottom: 0 }}
+                />
+              </View>
+              <TouchableOpacity
+                style={[
+                  styles.mapButton,
+                  {
+                    backgroundColor: isDark
+                      ? "rgba(255,255,255,0.05)"
+                      : "#f3f4f6",
+                  },
+                ]}
+                onPress={openCityMap}
+              >
+                <Map size={20} color={theme.primary} />
+              </TouchableOpacity>
+            </View>
+
+            <Input
+              label="Bio"
+              value={formData.bio}
+              onChangeText={(text) => setFormData({ ...formData, bio: text })}
+              placeholder="Share a bit about yourself with the community..."
+              multiline
+              numberOfLines={4}
+            />
+          </View>
+        </Animated.View>
+
+        <Animated.View entering={FadeInDown.delay(600).duration(800).springify()} style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <View style={[styles.sectionIcon, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)' }]}>
+              <Car size={20} color={theme.text} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.sectionTitle, { color: theme.text }]}>Vehicle Details</Text>
+              <Text style={[styles.sectionSubtitle, { color: theme.textMuted }]}>Add your car info to start hosting rides</Text>
+            </View>
+          </View>
+
+          <View style={styles.sectionContent}>
+            <Input
+              label="Vehicle Model"
+              value={formData.vehicleModel}
+              onChangeText={(text) =>
+                setFormData({ ...formData, vehicleModel: text })
+              }
+              placeholder="e.g. Tesla Model 3"
+            />
+
+            <View style={styles.row}>
+              <View style={{ flex: 1, marginRight: 12 }}>
+                <Input
+                  label="Color"
+                  value={formData.vehicleColor}
+                  onChangeText={(text) =>
+                    setFormData({ ...formData, vehicleColor: text })
+                  }
+                  placeholder="e.g. Silver"
+                />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Input
+                  label="License Plate"
+                  value={formData.vehiclePlate}
+                  onChangeText={(text) =>
+                    setFormData({ ...formData, vehiclePlate: text })
+                  }
+                  placeholder="e.g. ABC-1234"
+                />
+              </View>
+            </View>
+          </View>
+        </Animated.View>
 
         <Animated.View
           entering={FadeInDown.delay(700).duration(800).springify()}
@@ -523,7 +598,7 @@ export default function Profile() {
             }}
           />
           <MapMarker />
-          
+
           <View style={styles.mapOverlayTop}>
             <TouchableOpacity
               style={[
@@ -575,6 +650,24 @@ const styles = StyleSheet.create({
   profileHeader: {
     alignItems: "center",
     marginBottom: 32,
+    position: "relative",
+    width: "100%",
+  },
+  settingsButton: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    zIndex: 10,
   },
   avatarContainer: {
     marginBottom: 20,
@@ -632,16 +725,94 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     marginTop: 6,
   },
-  card: {
-    borderRadius: 32,
-    borderWidth: 0,
+  ratingBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 215, 0, 0.1)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    marginTop: 12,
+    gap: 6,
+  },
+  ratingText: {
+    fontSize: 15,
+    fontWeight: '800',
+  },
+  ratingCount: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  reviewItem: {
+    paddingVertical: 16,
+  },
+  reviewHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 8,
+  },
+  reviewAuthor: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  reviewAvatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#ccc',
+  },
+  reviewName: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  reviewDate: {
+    fontSize: 12,
+  },
+  reviewStars: {
+    flexDirection: 'row',
+    gap: 2,
+  },
+  reviewComment: {
+    fontSize: 14,
+    lineHeight: 20,
+    fontWeight: '500',
+  },
+  emptyReviews: {
+    padding: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  section: {
+    marginBottom: 40,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
     marginBottom: 24,
-    padding: 24,
-    elevation: 4,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.05,
-    shadowRadius: 12,
+    paddingHorizontal: 4,
+  },
+  sectionIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 16,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    letterSpacing: -0.5,
+  },
+  sectionSubtitle: {
+    fontSize: 13,
+    fontWeight: '600',
+    marginTop: 2,
+  },
+  sectionContent: {
+    paddingHorizontal: 4,
   },
   row: {
     flexDirection: "row",
@@ -650,6 +821,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "flex-end",
     gap: 12,
+    marginBottom: 20,
   },
   mapButton: {
     width: 56,
@@ -657,7 +829,6 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     justifyContent: "center",
     alignItems: "center",
-    marginBottom: 12,
   },
   mapOverlayTop: {
     position: "absolute",

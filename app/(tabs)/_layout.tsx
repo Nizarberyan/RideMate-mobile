@@ -1,6 +1,6 @@
 import { Tabs } from 'expo-router';
 import { View, StyleSheet } from 'react-native';
-import { LayoutDashboard, PlusCircle, User, Search } from 'lucide-react-native';
+import { LayoutDashboard, PlusCircle, User, Search, Ticket } from 'lucide-react-native';
 import { useTheme } from '../../context/ThemeContext';
 
 export default function TabsLayout() {
@@ -47,6 +47,18 @@ export default function TabsLayout() {
           tabBarIcon: ({ color, focused }) => (
             <View style={[styles.tabIconContainer, focused && { backgroundColor: isDark ? 'rgba(190, 242, 100, 0.1)' : 'rgba(190, 242, 100, 0.2)' }]}>
               <Search size={24} color={color} />
+            </View>
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="bookings"
+        options={{
+          title: 'My Bookings',
+          tabBarLabel: 'Bookings',
+          tabBarIcon: ({ color, focused }) => (
+            <View style={[styles.tabIconContainer, focused && { backgroundColor: isDark ? 'rgba(190, 242, 100, 0.1)' : 'rgba(190, 242, 100, 0.2)' }]}>
+              <Ticket size={24} color={color} />
             </View>
           ),
         }}

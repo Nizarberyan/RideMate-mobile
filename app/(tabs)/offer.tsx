@@ -13,7 +13,7 @@ import {
   KeyboardAvoidingView
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Car, MapPin, Map, Calendar, Plus, AlertCircle, CheckCircle2, Clock, X } from 'lucide-react-native';
+import { Car, MapPin, Map, Calendar, Plus, AlertCircle, CheckCircle2, Clock, X, ShieldCheck } from 'lucide-react-native';
 import { useAuth } from '../../context/AuthContext';
 import { useRouter } from 'expo-router';
 import { useTheme } from '../../context/ThemeContext';
@@ -51,6 +51,8 @@ export default function OfferRide() {
     endLocation: '',
     availableSeats: '3',
     description: '',
+    requirePhoto: false,
+    minRating: '0',
   });
 
   const [startCoords, setStartCoords] = useState<{ latitude: number, longitude: number } | null>(null);
@@ -220,6 +222,8 @@ export default function OfferRide() {
         departureDatetime: date.toISOString(),
         availableSeats: parseInt(formData.availableSeats),
         description: formData.description,
+        requirePhoto: formData.requirePhoto,
+        minRating: formData.minRating !== '0' ? parseFloat(formData.minRating) : undefined,
       });
 
       setSuccess(true);
@@ -230,6 +234,8 @@ export default function OfferRide() {
           endLocation: '',
           availableSeats: '3',
           description: '',
+          requirePhoto: false,
+          minRating: '0',
         });
         setStartCoords(null);
         setEndCoords(null);
@@ -563,6 +569,55 @@ export default function OfferRide() {
                   multiline
                   numberOfLines={3}
                 />
+              </Animated.View>
+
+              <Animated.View entering={FadeInDown.delay(850).duration(800).springify()}>
+                <View style={[styles.sectionHeader, { marginTop: 12 }]}>
+                  <ShieldCheck size={18} color={theme.primary} />
+                  <Text style={[styles.sectionTitle, { color: theme.text }]}>Trust & Safety</Text>
+                </View>
+                
+                <Card style={[styles.restrictionCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+                  <TouchableOpacity 
+                    style={styles.restrictionRow}
+                    onPress={() => setFormData({ ...formData, requirePhoto: !formData.requirePhoto })}
+                    activeOpacity={0.7}
+                  >
+                    <View style={styles.restrictionInfo}>
+                      <Text style={[styles.restrictionLabel, { color: theme.text }]}>Verified Photo Required</Text>
+                      <Text style={[styles.restrictionSub, { color: theme.textMuted }]}>Only people with profile pictures can book</Text>
+                    </View>
+                    <View style={[styles.toggle, { backgroundColor: formData.requirePhoto ? theme.primary : (isDark ? '#333' : '#e5e7eb') }]}>
+                      <View style={[styles.toggleThumb, { transform: [{ translateX: formData.requirePhoto ? 20 : 0 }] }]} />
+                    </View>
+                  </TouchableOpacity>
+
+                  <View style={[styles.divider, { backgroundColor: theme.border, marginVertical: 12 }]} />
+
+                  <View style={styles.restrictionRow}>
+                    <View style={styles.restrictionInfo}>
+                      <Text style={[styles.restrictionLabel, { color: theme.text }]}>Minimum Rating</Text>
+                      <Text style={[styles.restrictionSub, { color: theme.textMuted }]}>Require a minimum star rating to book</Text>
+                    </View>
+                    <View style={styles.ratingSelector}>
+                      {['0', '3', '4', '4.5'].map((r) => (
+                        <TouchableOpacity
+                          key={r}
+                          onPress={() => setFormData({ ...formData, minRating: r })}
+                          style={[
+                            styles.ratingOption,
+                            { borderColor: theme.border },
+                            formData.minRating === r && { backgroundColor: theme.primary, borderColor: theme.primary }
+                          ]}
+                        >
+                          <Text style={[styles.ratingOptionText, { color: formData.minRating === r ? '#151515' : theme.text }]}>
+                            {r === '0' ? 'None' : `${r}★`}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </View>
+                </Card>
               </Animated.View>
 
               <Animated.View entering={FadeInDown.delay(900).duration(800).springify()}>
@@ -974,5 +1029,69 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '900',
     letterSpacing: 1,
-  }
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 12,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+  },
+  restrictionCard: {
+    padding: 16,
+    borderRadius: 24,
+    borderWidth: 1,
+  },
+  restrictionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  restrictionInfo: {
+    flex: 1,
+    marginRight: 16,
+  },
+  restrictionLabel: {
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  restrictionSub: {
+    fontSize: 12,
+    fontWeight: '500',
+    marginTop: 2,
+  },
+  toggle: {
+    width: 48,
+    height: 28,
+    borderRadius: 14,
+    padding: 4,
+  },
+  toggleThumb: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: '#fff',
+  },
+  ratingSelector: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  ratingOption: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 10,
+    borderWidth: 1,
+  },
+  ratingOptionText: {
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  divider: {
+    height: 1,
+    width: '100%',
+  },
 });

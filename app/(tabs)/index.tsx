@@ -285,9 +285,9 @@ const styles = StyleSheet.create({
   banner: {
     borderBottomLeftRadius: 40,
     borderBottomRightRadius: 40,
-    paddingHorizontal: 30,
+    paddingHorizontal: 24,
     paddingBottom: 40,
-    marginBottom: 10,
+    marginBottom: 0,
   },
   bannerLabel: {
     fontSize: 12,

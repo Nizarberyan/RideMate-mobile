@@ -71,7 +71,7 @@ export default function SearchScreen() {
       setRides(initialRides);
       setIsSearching(false);
     } catch (e) {
-      console.error("Failed to load initial rides:", e);
+      // Silently handle initial load failure in production, or show a toast
     } finally {
       setIsLoading(false);
       setRefreshing(false);
@@ -87,14 +87,24 @@ export default function SearchScreen() {
     setIsLoading(true);
     setIsSearching(true);
     try {
+      // Extract local date reliably avoiding UTC timezone shift
+      let formattedDate: string | undefined = undefined;
+      if (searchForm.date) {
+        const year = searchForm.date.getFullYear();
+        const month = String(searchForm.date.getMonth() + 1).padStart(2, '0');
+        const day = String(searchForm.date.getDate()).padStart(2, '0');
+        formattedDate = `${year}-${month}-${day}`;
+      }
+
       const results = await client.rides.getAll({
         from: searchForm.from || undefined,
         to: searchForm.to || undefined,
-        date: searchForm.date ? searchForm.date.toISOString().split('T')[0] : undefined,
+        date: formattedDate,
       });
       setRides(results);
-    } catch (e: any) {
-      Alert.alert("Search Error", e.message || "Failed to search rides");
+    } catch (e) {
+      const error = e as Error;
+      Alert.alert("Search Error", error.message || "Failed to search rides");
     } finally {
       setIsLoading(false);
     }
@@ -250,7 +260,7 @@ export default function SearchScreen() {
                     }
                   </Text>
                   {isSearching && (
-                    <TouchableOpacity onPress={clearSearch} style={styles.clearButton}>
+                    <TouchableOpacity onPress={clearSearch} style={styles.clearButton} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
                       <X size={20} color={isDark ? "#ffffff" : "#151515"} />
                     </TouchableOpacity>
                   )}
@@ -327,7 +337,7 @@ export default function SearchScreen() {
                       <View>
                         <Text style={[styles.driverName, { color: theme.text }]}>{ride.driver?.name || "Unknown Driver"}</Text>
                         <Text style={[styles.vehicleInfo, { color: theme.textMuted }]}>
-                          {ride.driver?.vehicleModel || "No car info"}
+                          {ride.driver?.vehicleModel || "Vehicle unlisted"}
                         </Text>
                       </View>
                     </View>
@@ -360,7 +370,7 @@ export default function SearchScreen() {
             <TouchableOpacity activeOpacity={1} style={{ width: '100%' }}>
               <View style={styles.modalHeader}>
                 <Text style={[styles.modalTitle, { color: theme.text }]}>Select Date</Text>
-                <TouchableOpacity onPress={() => setShowCustomPicker(false)} style={styles.closeModalButton}>
+                <TouchableOpacity onPress={() => setShowCustomPicker(false)} style={styles.closeModalButton} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
                   <X size={24} color={theme.text} />
                 </TouchableOpacity>
               </View>

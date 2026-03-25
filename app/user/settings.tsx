@@ -84,7 +84,6 @@ export default function SettingsScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
-      {/* Header */}
       <View style={[styles.header, { paddingTop: insets.top + 20 }]}>
         <TouchableOpacity 
           onPress={() => router.back()} 
@@ -94,7 +93,7 @@ export default function SettingsScreen() {
           <ArrowLeft size={24} color={theme.text} />
         </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: theme.text }]}>Settings</Text>
-        <View style={{ width: 44 }} /> {/* Spacer to keep title perfectly centered */}
+        <View style={{ width: 44 }} />
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
