@@ -17,7 +17,7 @@ import { Car, MapPin, Map, Calendar, Plus, AlertCircle, CheckCircle2, Clock, X }
 import { useAuth } from '../../context/AuthContext';
 import { useRouter } from 'expo-router';
 import { useTheme } from '../../context/ThemeContext';
-import { Button, Input, Card, ConfirmDialog } from '../../components/ui';
+import { Button, Input, Card, ConfirmDialog, SegmentedControl } from '../../components/ui';
 import { MapSearchBar } from '../../components/ui/MapSearchBar';
 import { MapMarker } from '../../components/ui/MapMarker';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
@@ -43,6 +43,8 @@ export default function OfferRide() {
   };
   const [dialog, setDialog] = useState<DialogConfig>({ visible: false, title: '', actions: [] });
   const dismissDialog = () => setDialog(prev => ({ ...prev, visible: false }));
+  
+  const [rideType, setRideType] = useState<string>('intra');
 
   const [formData, setFormData] = useState({
     startLocation: '',
@@ -148,6 +150,28 @@ export default function OfferRide() {
 
   const handleMapConfirm = async () => {
     const coords = { latitude: mapRegion.latitude, longitude: mapRegion.longitude };
+    
+    if (rideType === 'intra' && user?.city) {
+      try {
+        const reverse = await Location.reverseGeocodeAsync(coords);
+        const cityMatched = reverse.some(
+          (r) =>
+            r.city?.toLowerCase().includes(user.city!.toLowerCase()) ||
+            r.subregion?.toLowerCase().includes(user.city!.toLowerCase())
+        );
+        
+        if (!cityMatched && reverse.length > 0) {
+          Alert.alert(
+            "Out of Bounds",
+            `Intra-City rides require locations within ${user.city}. You selected somewhere else. Switch to City-to-City if you are traveling between cities.`
+          );
+          return;
+        }
+      } catch (e) {
+        console.error("Geocoding validation failed", e);
+      }
+    }
+
     if (pickingMode === 'start') {
       setStartCoords(coords);
       try {
@@ -294,6 +318,18 @@ export default function OfferRide() {
               >
                 FILL IN THE TRIP DETAILS
               </Animated.Text>
+
+              <Animated.View entering={FadeInDown.delay(350).duration(800).springify()}>
+                 <SegmentedControl 
+                    options={[
+                      {label: 'Intra-City', value: 'intra', icon: <MapPin size={16} color={rideType === 'intra' ? theme.text : theme.textMuted}/>}, 
+                      {label: 'City-to-City', value: 'inter', icon: <Map size={16} color={rideType === 'inter' ? theme.text : theme.textMuted}/>}
+                    ]}
+                    selectedValue={rideType}
+                    onValueChange={setRideType}
+                    style={{ marginBottom: 24 }}
+                 />
+              </Animated.View>
 
               <Animated.View entering={FadeInDown.delay(400).duration(800).springify()}>
                 <TouchableOpacity onPress={() => openMap('start')} activeOpacity={0.7}>

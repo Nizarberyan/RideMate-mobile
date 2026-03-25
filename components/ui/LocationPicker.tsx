@@ -8,6 +8,7 @@ import {
   Dimensions,
   ActivityIndicator,
   Platform,
+  Alert,
 } from 'react-native';
 import { GoogleMaps, AppleMaps } from 'expo-maps';
 import * as Location from 'expo-location';
@@ -17,6 +18,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button, Input } from './index';
 import { MapMarker } from './MapMarker';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
+import { ViewStyle, StyleProp } from 'react-native';
 
 const { width, height } = Dimensions.get('window');
 
@@ -28,9 +30,11 @@ interface LocationPickerProps {
   onLocationSelect: (location: { address: string; latitude: number; longitude: number }) => void;
   placeholder?: string;
   icon?: React.ReactNode;
+  restrictedCity?: string;
+  style?: StyleProp<ViewStyle>;
 }
 
-export function LocationPicker({ label, value, onLocationSelect, placeholder, icon }: LocationPickerProps) {
+export function LocationPicker({ label, value, onLocationSelect, placeholder, icon, restrictedCity, style }: LocationPickerProps) {
   const { theme, isDark } = useTheme();
   const insets = useSafeAreaInsets();
   const [showMap, setShowMap] = useState(false);
@@ -59,13 +63,13 @@ export function LocationPicker({ label, value, onLocationSelect, placeholder, ic
     // Reset previous selection so the old marker doesn't flash on screen
     setSelectedCoords(null);
     setTempAddress('');
+    setShowMap(true);
     setLoading(true);
     try {
       let { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
         alert('Permission to access location was denied');
         setLoading(false);
-        setShowMap(true);
         return;
       }
 
@@ -99,7 +103,6 @@ export function LocationPicker({ label, value, onLocationSelect, placeholder, ic
       console.error(e);
     } finally {
       setLoading(false);
-      setShowMap(true);
     }
   };
 
@@ -109,8 +112,32 @@ export function LocationPicker({ label, value, onLocationSelect, placeholder, ic
     setTempAddress('');
   };
 
-  const handleConfirm = () => {
+  const handleConfirm = async () => {
     if (selectedCoords) {
+      if (restrictedCity) {
+        setLoading(true);
+        try {
+          const reverse = await Location.reverseGeocodeAsync(selectedCoords);
+          const cityMatched = reverse.some(
+            (r) =>
+              r.city?.toLowerCase().includes(restrictedCity.toLowerCase()) ||
+              r.subregion?.toLowerCase().includes(restrictedCity.toLowerCase())
+          );
+          
+          if (!cityMatched && reverse.length > 0) {
+            Alert.alert(
+              "Out of Bounds",
+              `This ride requires locations within ${restrictedCity}. You selected somewhere else.`
+            );
+            setLoading(false);
+            return;
+          }
+        } catch (e) {
+          console.error("Geocoding validation failed", e);
+        }
+        setLoading(false);
+      }
+
       onLocationSelect({
         address: tempAddress || value,
         latitude: selectedCoords.latitude,
@@ -121,7 +148,7 @@ export function LocationPicker({ label, value, onLocationSelect, placeholder, ic
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, style]}>
       {label && <Text style={[styles.label, { color: theme.text }]}>{label}</Text>}
 
       <TouchableOpacity
@@ -191,13 +218,13 @@ export function LocationPicker({ label, value, onLocationSelect, placeholder, ic
           {/* Bottom Action */}
           <View style={[styles.mapFooter, { paddingBottom: Math.max(insets.bottom, 24) }]}>
             <Button
-              label="Confirm Location"
+              label={loading ? "Verifying Area..." : "Confirm Location"}
               variant="black"
               size="lg"
-              disabled={!selectedCoords}
+              disabled={!selectedCoords || loading}
               onPress={handleConfirm}
               style={{ width: '100%' }}
-              icon={<Check size={20} color={theme.primary} />}
+              icon={!loading ? <Check size={20} color={theme.primary} /> : undefined}
             />
           </View>
         </View>

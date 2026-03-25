@@ -14,12 +14,13 @@ import {
   Dimensions
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Search as SearchIcon, MapPin, Calendar, Users, ArrowRight, X } from 'lucide-react-native';
+import { Search as SearchIcon, MapPin, Map, Calendar, Users, ArrowRight, X } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { Ride } from '@/src/api/client';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
-import { Button, Input, Card } from '../../components/ui';
+import { Button, Input, Card, SegmentedControl, PredictionInput } from '../../components/ui';
+import { LocationPicker } from '../../components/ui/LocationPicker';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 
 const { width } = Dimensions.get('window');
@@ -41,6 +42,8 @@ export default function SearchScreen() {
     to: '',
     date: null as Date | null,
   });
+
+  const [rideType, setRideType] = useState<'intra' | 'inter'>('intra');
 
   const [showCustomPicker, setShowCustomPicker] = useState(false);
 
@@ -156,31 +159,76 @@ export default function SearchScreen() {
             </Animated.Text>
 
             <View style={styles.formContainer}>
-              <Animated.View entering={FadeInUp.delay(400).duration(800).springify()}>
-                <Input
-                  containerStyle={{ marginBottom: 12 }}
-                  inputWrapperStyle={{ backgroundColor: isDark ? '#151515' : '#ffffff', borderColor: isDark ? '#151515' : '#ffffff' }}
-                  inputStyle={{ color: isDark ? '#ffffff' : '#151515' }}
-                  leftIcon={<MapPin size={20} color={isDark ? "#C1F11D" : "#151515"} />}
-                  placeholder="From where?"
-                  placeholderTextColor={isDark ? "rgba(255, 255, 255, 0.4)" : "rgba(21, 21, 21, 0.4)"}
-                  value={searchForm.from}
-                  onChangeText={(text) => setSearchForm({ ...searchForm, from: text })}
-                />
+              <Animated.View entering={FadeInDown.delay(350).duration(800).springify()}>
+                 <SegmentedControl 
+                    options={[
+                      {label: 'Intra-City', value: 'intra', icon: <MapPin size={16} color={rideType === 'intra' ? theme.text : theme.textMuted}/>}, 
+                      {label: 'City-to-City', value: 'inter', icon: <Map size={16} color={rideType === 'inter' ? theme.text : theme.textMuted}/>}
+                    ]}
+                    selectedValue={rideType}
+                    onValueChange={(val) => {
+                      setRideType(val as 'intra' | 'inter');
+                      setSearchForm({ from: '', to: '', date: null });
+                    }}
+                    style={{ marginBottom: 24 }}
+                 />
               </Animated.View>
 
-              <Animated.View entering={FadeInUp.delay(500).duration(800).springify()}>
-                <Input
-                  containerStyle={{ marginBottom: 12 }}
-                  inputWrapperStyle={{ backgroundColor: isDark ? '#151515' : '#ffffff', borderColor: isDark ? '#151515' : '#ffffff' }}
-                  inputStyle={{ color: isDark ? '#ffffff' : '#151515' }}
-                  leftIcon={<MapPin size={20} color="#ef4444" />}
-                  placeholder="To where?"
-                  placeholderTextColor={isDark ? "rgba(255, 255, 255, 0.4)" : "rgba(21, 21, 21, 0.4)"}
-                  value={searchForm.to}
-                  onChangeText={(text) => setSearchForm({ ...searchForm, to: text })}
-                />
-              </Animated.View>
+              {rideType === 'intra' ? (
+                <>
+                  <Animated.View entering={FadeInUp.delay(400).duration(800).springify()} style={{ marginBottom: 12 }}>
+                    <LocationPicker
+                      label=""
+                      placeholder="From where in your city?"
+                      icon={<MapPin size={20} color={isDark ? "#C1F11D" : "#151515"} />}
+                      value={searchForm.from}
+                      onLocationSelect={(loc) => setSearchForm({ ...searchForm, from: loc.address })}
+                      restrictedCity={user?.city || undefined}
+                      style={{ marginBottom: 0 }}
+                    />
+                  </Animated.View>
+
+                  <Animated.View entering={FadeInUp.delay(500).duration(800).springify()} style={{ marginBottom: 12 }}>
+                    <LocationPicker
+                      label=""
+                      placeholder="To where?"
+                      icon={<MapPin size={20} color="#ef4444" />}
+                      value={searchForm.to}
+                      onLocationSelect={(loc) => setSearchForm({ ...searchForm, to: loc.address })}
+                      restrictedCity={user?.city || undefined}
+                      style={{ marginBottom: 0 }}
+                    />
+                  </Animated.View>
+                </>
+              ) : (
+                <>
+                  <Animated.View entering={FadeInUp.delay(400).duration(800).springify()} style={{ zIndex: 2 }}>
+                    <PredictionInput
+                      containerStyle={{ marginBottom: 12 }}
+                      inputWrapperStyle={{ backgroundColor: isDark ? '#151515' : '#ffffff', borderColor: isDark ? '#151515' : '#ffffff' }}
+                      inputStyle={{ color: isDark ? '#ffffff' : '#151515' }}
+                      leftIcon={<MapPin size={20} color={isDark ? "#C1F11D" : "#151515"} />}
+                      placeholder="From (City)"
+                      placeholderTextColor={isDark ? "rgba(255, 255, 255, 0.4)" : "rgba(21, 21, 21, 0.4)"}
+                      value={searchForm.from}
+                      onSelect={(value) => setSearchForm({ ...searchForm, from: value })}
+                    />
+                  </Animated.View>
+
+                  <Animated.View entering={FadeInUp.delay(500).duration(800).springify()} style={{ zIndex: 1 }}>
+                    <PredictionInput
+                      containerStyle={{ marginBottom: 12 }}
+                      inputWrapperStyle={{ backgroundColor: isDark ? '#151515' : '#ffffff', borderColor: isDark ? '#151515' : '#ffffff' }}
+                      inputStyle={{ color: isDark ? '#ffffff' : '#151515' }}
+                      leftIcon={<MapPin size={20} color="#ef4444" />}
+                      placeholder="To (City)"
+                      placeholderTextColor={isDark ? "rgba(255, 255, 255, 0.4)" : "rgba(21, 21, 21, 0.4)"}
+                      value={searchForm.to}
+                      onSelect={(value) => setSearchForm({ ...searchForm, to: value })}
+                    />
+                  </Animated.View>
+                </>
+              )}
 
               <Animated.View entering={FadeInUp.delay(600).duration(800).springify()}>
                 <TouchableOpacity

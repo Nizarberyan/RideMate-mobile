@@ -18,7 +18,7 @@ import { Card } from '../../components/ui';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 
 export default function Dashboard() {
-  const { user, client } = useAuth();
+  const { user, client, isLoading: authLoading } = useAuth();
   const router = useRouter();
   const { theme, isDark } = useTheme();
   const insets = useSafeAreaInsets();
@@ -47,14 +47,23 @@ export default function Dashboard() {
   }, [client, activeTab]);
 
   useEffect(() => {
+    if (authLoading || !user) return;
     setIsLoading(true);
     loadDashboardData();
-  }, [loadDashboardData, activeTab]);
+  }, [loadDashboardData, activeTab, authLoading, user]);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
     loadDashboardData();
   }, [loadDashboardData]);
+
+  if (authLoading || !user) {
+    return (
+      <View style={[styles.container, styles.center, { backgroundColor: theme.background }]}>
+        <ActivityIndicator size="large" color={theme.primary} />
+      </View>
+    );
+  }
 
   const renderDrivingEmpty = () => (
     <Card style={styles.emptyCard} delay={200}>
