@@ -92,9 +92,11 @@ export default function OfferRide() {
   const safelyMoveCamera = async (coords: { latitude: number, longitude: number }, zoom = 15) => {
     try {
       if (mapRef.current) {
-        await mapRef.current.setCameraPosition({ coordinates: coords, zoom }).catch(() => {});
+        await mapRef.current.setCameraPosition({ coordinates: coords, zoom });
       }
-    } catch (err) {}
+    } catch (err) {
+      // Silently handle animation cancellation during unmount
+    }
   };
 
   const openMap = async (mode: 'start' | 'end') => {

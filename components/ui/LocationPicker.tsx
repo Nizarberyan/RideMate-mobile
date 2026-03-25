@@ -48,9 +48,11 @@ export function LocationPicker({ label, value, onLocationSelect, placeholder, ic
   const safelyMoveCamera = async (coords: { latitude: number, longitude: number }, zoom = 15) => {
     try {
       if (mapRef.current) {
-        await mapRef.current.setCameraPosition({ coordinates: coords, zoom }).catch(() => {});
+        await mapRef.current.setCameraPosition({ coordinates: coords, zoom });
       }
-    } catch (err) {}
+    } catch (err) {
+      // Silently handle animation cancellation during unmount
+    }
   };
 
   const handleOpenMap = async () => {
