@@ -53,13 +53,13 @@ export const Card = ({
 
   const handlePressIn = () => {
     if (onPress) {
-      scale.value = withSpring(0.98, { damping: 15, stiffness: 300 });
+      scale.value = withSpring(0.98, { damping: 20, stiffness: 400 });
     }
   };
 
   const handlePressOut = () => {
     if (onPress) {
-      scale.value = withSpring(1, { damping: 15, stiffness: 300 });
+      scale.value = withSpring(1, { damping: 20, stiffness: 400 });
     }
   };
 
@@ -93,7 +93,7 @@ export const Card = ({
     { 
       backgroundColor: theme.surface, 
       borderColor: theme.border,
-      shadowColor: '#000',
+      shadowColor: theme.shadow,
     }, 
     animatedStyle,
     style
@@ -107,6 +107,8 @@ export const Card = ({
           onPress={onPress}
           onPressIn={handlePressIn}
           onPressOut={handlePressOut}
+          accessibilityRole="button"
+          accessible={true}
         >
           {innerContent}
         </AnimatedPressable>

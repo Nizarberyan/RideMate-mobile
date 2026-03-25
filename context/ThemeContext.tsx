@@ -12,6 +12,10 @@ export const Colors = {
     border: '#E5E7EB',
     input: '#ffffff',
     tabBar: '#ffffff',
+    danger: '#EF4444',
+    dangerBg: '#FEE2E2',
+    shadow: 'rgba(21, 21, 21, 0.08)',
+    overlay: 'rgba(193, 241, 29, 0.15)',
   },
   dark: {
     background: '#0F0F0F', // Deeper Black
@@ -22,6 +26,10 @@ export const Colors = {
     border: '#262626',
     input: '#1A1A1A',
     tabBar: '#1A1A1A',
+    danger: '#F87171',
+    dangerBg: '#3D1212',
+    shadow: 'rgba(0, 0, 0, 0.3)',
+    overlay: 'rgba(193, 241, 29, 0.1)',
   }
 };
 

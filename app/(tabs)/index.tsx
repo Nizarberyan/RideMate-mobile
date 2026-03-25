@@ -3,7 +3,7 @@ import {
   StyleSheet,
   Text,
   View,
-  ScrollView,
+  FlatList,
   ActivityIndicator,
   RefreshControl,
   TouchableOpacity
@@ -56,126 +56,194 @@ export default function Dashboard() {
     loadDashboardData();
   }, [loadDashboardData]);
 
-  const renderDrivingRides = () => {
-    if (drivingRides.length === 0) {
-      return (
-        <Card style={styles.emptyCard} delay={400}>
-          <View style={styles.emptyState}>
-            <Car size={40} color={theme.textMuted} />
-            <Text style={[styles.emptyText, { color: theme.textMuted }]}>No rides offered yet.</Text>
-          </View>
-        </Card>
-      );
-    }
+  const renderDrivingEmpty = () => (
+    <Card style={styles.emptyCard} delay={200}>
+      <View style={styles.emptyState}>
+        <Car size={40} color={theme.textMuted} accessibilityLabel="Car icon" />
+        <Text style={[styles.emptyText, { color: theme.textMuted }]}>No rides offered yet.</Text>
+      </View>
+    </Card>
+  );
 
-    return drivingRides.map((ride, index) => (
+  const renderDrivingRide = ({ item: ride, index }: { item: Ride, index: number }) => (
+    <Card 
+      key={ride.id} 
+      style={styles.rideCard}
+      contentStyle={{ padding: 0 }}
+      delay={200 + (index * 50)}
+      onPress={() => router.push(`/rides/${ride.id}`)}
+    >
+      <View style={styles.cardHeader}>
+        <View style={[styles.locationRow, { marginRight: 12 }]}>
+          <Text style={[styles.locationText, { color: theme.text }]} numberOfLines={1} ellipsizeMode="tail">{ride.startLocation}</Text>
+          <ArrowRight size={16} color={theme.textMuted} style={{ marginHorizontal: 8, flexShrink: 0 }} accessible={false} />
+          <Text style={[styles.locationText, { color: theme.text }]} numberOfLines={1} ellipsizeMode="tail">{ride.endLocation}</Text>
+        </View>
+        <View style={[styles.statusBadge, { backgroundColor: theme.overlay }]}>
+          <Text style={[styles.statusText, { color: isDark ? theme.primary : '#4d7c0f' }]}>{ride.status.toUpperCase()}</Text>
+        </View>
+      </View>
+      <Text style={[styles.cardSubtext, { color: theme.textMuted }]}>
+        {new Date(ride.departureDatetime).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })} at {new Date(ride.departureDatetime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+      </Text>
+      <View style={[styles.cardFooter, { borderTopColor: theme.border }]}>
+        <View style={styles.footerItem}>
+          <Text style={[styles.footerText, { color: theme.textMuted }]}>{ride.availableSeats} seats left</Text>
+        </View>
+        <View style={[styles.bookingsBadge, { backgroundColor: theme.primary }]}>
+          <Text style={[styles.footerTextBold, { color: '#151515' }]}>{ride.bookings?.length || 0} Bookings</Text>
+        </View>
+      </View>
+    </Card>
+  );
+
+  const renderRidingEmpty = () => (
+    <Card style={styles.emptyCard} delay={200}>
+      <View style={styles.emptyState}>
+        <MapPin size={40} color={theme.textMuted} accessibilityLabel="Map pin icon" />
+        <Text style={[styles.emptyText, { color: theme.textMuted }]}>No upcoming trips booked.</Text>
+        <TouchableOpacity 
+          style={[styles.searchLink, { backgroundColor: theme.shadow }]}
+          onPress={() => router.push('/(tabs)/search')}
+          accessibilityRole="button"
+          accessibilityLabel="Find a ride"
+        >
+          <Text style={[styles.searchLinkText, { color: theme.primary }]}>Find a Ride</Text>
+        </TouchableOpacity>
+      </View>
+    </Card>
+  );
+
+  const renderRidingBooking = ({ item: booking, index }: { item: Booking, index: number }) => {
+    const ride = booking.ride;
+    if (!ride) return null;
+    
+    return (
       <Card 
-        key={ride.id} 
+        key={booking.id} 
         style={styles.rideCard}
         contentStyle={{ padding: 0 }}
-        delay={400 + (index * 100)}
+        delay={200 + (index * 50)}
         onPress={() => router.push(`/rides/${ride.id}`)}
       >
         <View style={styles.cardHeader}>
           <View style={[styles.locationRow, { marginRight: 12 }]}>
             <Text style={[styles.locationText, { color: theme.text }]} numberOfLines={1} ellipsizeMode="tail">{ride.startLocation}</Text>
-            <ArrowRight size={16} color={theme.textMuted} style={{ marginHorizontal: 8, flexShrink: 0 }} />
+            <ArrowRight size={16} color={theme.textMuted} style={{ marginHorizontal: 8, flexShrink: 0 }} accessible={false} />
             <Text style={[styles.locationText, { color: theme.text }]} numberOfLines={1} ellipsizeMode="tail">{ride.endLocation}</Text>
           </View>
-          <View style={[styles.statusBadge, { backgroundColor: isDark ? 'rgba(193, 241, 29, 0.15)' : 'rgba(193, 241, 29, 0.3)' }]}>
-            <Text style={[styles.statusText, { color: isDark ? theme.primary : '#4d7c0f' }]}>{ride.status.toUpperCase()}</Text>
+          <View style={[styles.statusBadge, { backgroundColor: booking.status === 'CONFIRMED' ? theme.overlay : theme.dangerBg }]}>
+            <Text style={[styles.statusText, { color: booking.status === 'CONFIRMED' ? (isDark ? theme.primary : '#4d7c0f') : theme.danger }]}>
+              {booking.status.toUpperCase()}
+            </Text>
           </View>
         </View>
-        <Text style={[styles.cardSubtext, { color: theme.textMuted }]}>
-          {new Date(ride.departureDatetime).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })} at {new Date(ride.departureDatetime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-        </Text>
+        
+        <View style={styles.dateRow}>
+          <Calendar size={14} color={theme.textMuted} style={{ marginRight: 6 }} accessible={false} />
+          <Text style={[styles.cardSubtext, { color: theme.textMuted, marginBottom: 0 }]}>
+            {new Date(ride.departureDatetime).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}
+          </Text>
+          <View style={styles.dotSeparator} />
+          <Clock size={14} color={theme.textMuted} style={{ marginRight: 6 }} accessible={false} />
+          <Text style={[styles.cardSubtext, { color: theme.textMuted, marginBottom: 0 }]}>
+            {new Date(ride.departureDatetime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+          </Text>
+        </View>
+        
         <View style={[styles.cardFooter, { borderTopColor: theme.border }]}>
           <View style={styles.footerItem}>
-            <Text style={[styles.footerText, { color: theme.textMuted }]}>{ride.availableSeats} seats left</Text>
+            <Text style={[styles.footerText, { color: theme.textMuted }]}>
+              {booking.seatsBooked} {booking.seatsBooked === 1 ? 'Seat' : 'Seats'} Booked
+            </Text>
           </View>
-          <View style={[styles.bookingsBadge, { backgroundColor: theme.primary }]}>
-            <Text style={[styles.footerTextBold, { color: '#151515' }]}>{ride.bookings?.length || 0} Bookings</Text>
+          <View style={[styles.viewRideBadge, { backgroundColor: theme.shadow }]}>
+            <Text style={[styles.footerTextBold, { color: theme.text }]}>View Ride</Text>
+            <ArrowRight size={14} color={theme.text} style={{ marginLeft: 6 }} accessible={false} />
           </View>
         </View>
       </Card>
-    ));
-  };
-
-  const renderRidingBookings = () => {
-    if (ridingBookings.length === 0) {
-      return (
-        <Card style={styles.emptyCard} delay={400}>
-          <View style={styles.emptyState}>
-            <MapPin size={40} color={theme.textMuted} />
-            <Text style={[styles.emptyText, { color: theme.textMuted }]}>No upcoming trips booked.</Text>
-            <TouchableOpacity 
-              style={[styles.searchLink, { backgroundColor: 'rgba(21, 21, 21, 0.05)' }]}
-              onPress={() => router.push('/(tabs)/search')}
-            >
-              <Text style={[styles.searchLinkText, { color: theme.primary }]}>Find a Ride</Text>
-            </TouchableOpacity>
-          </View>
-        </Card>
-      );
-    }
-
-    return ridingBookings.map((booking, index) => {
-      const ride = booking.ride;
-      if (!ride) return null;
-      
-      return (
-        <Card 
-          key={booking.id} 
-          style={styles.rideCard}
-          contentStyle={{ padding: 0 }}
-          delay={400 + (index * 100)}
-          onPress={() => router.push(`/rides/${ride.id}`)}
-        >
-          <View style={styles.cardHeader}>
-            <View style={[styles.locationRow, { marginRight: 12 }]}>
-              <Text style={[styles.locationText, { color: theme.text }]} numberOfLines={1} ellipsizeMode="tail">{ride.startLocation}</Text>
-              <ArrowRight size={16} color={theme.textMuted} style={{ marginHorizontal: 8, flexShrink: 0 }} />
-              <Text style={[styles.locationText, { color: theme.text }]} numberOfLines={1} ellipsizeMode="tail">{ride.endLocation}</Text>
-            </View>
-            <View style={[styles.statusBadge, { backgroundColor: booking.status === 'CONFIRMED' ? (isDark ? 'rgba(193, 241, 29, 0.15)' : 'rgba(193, 241, 29, 0.3)') : 'rgba(239, 68, 68, 0.15)' }]}>
-              <Text style={[styles.statusText, { color: booking.status === 'CONFIRMED' ? (isDark ? theme.primary : '#4d7c0f') : '#ef4444' }]}>
-                {booking.status.toUpperCase()}
-              </Text>
-            </View>
-          </View>
-          
-          <View style={styles.dateRow}>
-            <Calendar size={14} color={theme.textMuted} style={{ marginRight: 6 }} />
-            <Text style={[styles.cardSubtext, { color: theme.textMuted, marginBottom: 0 }]}>
-              {new Date(ride.departureDatetime).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}
-            </Text>
-            <View style={styles.dotSeparator} />
-            <Clock size={14} color={theme.textMuted} style={{ marginRight: 6 }} />
-            <Text style={[styles.cardSubtext, { color: theme.textMuted, marginBottom: 0 }]}>
-              {new Date(ride.departureDatetime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-            </Text>
-          </View>
-          
-          <View style={[styles.cardFooter, { borderTopColor: theme.border }]}>
-            <View style={styles.footerItem}>
-              <Text style={[styles.footerText, { color: theme.textMuted }]}>
-                {booking.seatsBooked} {booking.seatsBooked === 1 ? 'Seat' : 'Seats'} Booked
-              </Text>
-            </View>
-            <View style={styles.viewRideBadge}>
-              <Text style={[styles.footerTextBold, { color: theme.text }]}>View Ride</Text>
-              <ArrowRight size={14} color={theme.text} style={{ marginLeft: 6 }} />
-            </View>
-          </View>
-        </Card>
-      );
-    });
+    );
   };
 
   return (
     <View style={[styles.container, { backgroundColor: theme.primary }]}>
-      <ScrollView
+      <FlatList
+        data={activeTab === 'driving' ? drivingRides : ridingBookings}
+        keyExtractor={(item: any) => item.id.toString()}
         contentContainerStyle={[styles.scrollContent, { backgroundColor: theme.background, flexGrow: 1 }]}
+        ListHeaderComponent={
+          <>
+            <View style={[
+              styles.banner,
+              {
+                backgroundColor: theme.primary,
+                paddingTop: insets.top + 20
+              }
+            ]}>
+              <Animated.View entering={FadeInUp.delay(200).duration(800).springify()}>
+                <Text style={[styles.bannerLabel, { color: isDark ? 'rgba(21, 21, 21, 0.6)' : 'rgba(21, 21, 21, 0.5)' }]}>DASHBOARD</Text>
+                <Text style={[styles.bannerTitle, { color: '#151515' }]}>Welcome back,{"\n"}{user?.name?.split(' ')[0]}</Text>
+                <View style={[styles.carbonBadge, { backgroundColor: 'rgba(21, 21, 21, 0.08)' }]}>
+                  <Leaf size={14} color="#151515" />
+                  <Text style={[styles.carbonText, { color: '#151515' }]}>{user?.carbonSavedKg} kg saved</Text>
+                </View>
+              </Animated.View>
+            </View>
+
+            <View style={styles.mainContent}>
+              <Animated.View 
+                entering={FadeInDown.delay(300).duration(800).springify()}
+                style={[styles.tabsContainer, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)' }]}
+              >
+                <TouchableOpacity 
+                  style={[styles.tabButton, activeTab === 'riding' && [styles.activeTabButton, { backgroundColor: theme.surface }]]}
+                  onPress={() => setActiveTab('riding')}
+                  activeOpacity={0.8}
+                  accessibilityRole="tab"
+                  accessibilityState={{ selected: activeTab === 'riding' }}
+                  accessibilityLabel="Riding"
+                >
+                  <Text style={[styles.tabText, activeTab === 'riding' ? [styles.activeTabText, { color: theme.text }] : { color: theme.textMuted }]}>
+                    Riding
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  style={[styles.tabButton, activeTab === 'driving' && [styles.activeTabButton, { backgroundColor: theme.surface }]]}
+                  onPress={() => setActiveTab('driving')}
+                  activeOpacity={0.8}
+                  accessibilityRole="tab"
+                  accessibilityState={{ selected: activeTab === 'driving' }}
+                  accessibilityLabel="Driving"
+                >
+                  <Text style={[styles.tabText, activeTab === 'driving' ? [styles.activeTabText, { color: theme.text }] : { color: theme.textMuted }]}>
+                    Driving
+                  </Text>
+                </TouchableOpacity>
+              </Animated.View>
+
+              {isLoading && !refreshing && (
+                <View style={{ marginTop: 40, marginBottom: 40 }}>
+                  <ActivityIndicator size="large" color={theme.primary} />
+                </View>
+              )}
+            </View>
+          </>
+        }
+        renderItem={({ item, index }) => {
+          if (isLoading && !refreshing) return null;
+          return activeTab === 'driving' ? renderDrivingRide({ item: item as Ride, index }) : renderRidingBooking({ item: item as Booking, index });
+        }}
+        ListEmptyComponent={() => {
+          if (isLoading) return null;
+          return (
+            <View style={styles.mainContent}>
+              <Animated.View entering={FadeInDown.duration(600).springify()}>
+                {activeTab === 'driving' ? renderDrivingEmpty() : renderRidingEmpty()}
+              </Animated.View>
+            </View>
+          );
+        }}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -185,63 +253,7 @@ export default function Dashboard() {
             progressViewOffset={insets.top + 20}
           />
         }
-      >
-        <View style={[
-          styles.banner,
-          {
-            backgroundColor: theme.primary,
-            paddingTop: insets.top + 20
-          }
-        ]}>
-          <Animated.View entering={FadeInUp.delay(200).duration(800).springify()}>
-            <Text style={[styles.bannerLabel, { color: isDark ? 'rgba(21, 21, 21, 0.6)' : 'rgba(21, 21, 21, 0.5)' }]}>DASHBOARD</Text>
-            <Text style={[styles.bannerTitle, { color: '#151515' }]}>Welcome back,{"\n"}{user?.name?.split(' ')[0]}</Text>
-            <View style={[styles.carbonBadge, { backgroundColor: 'rgba(21, 21, 21, 0.08)' }]}>
-              <Leaf size={14} color="#151515" />
-              <Text style={[styles.carbonText, { color: '#151515' }]}>{user?.carbonSavedKg} kg saved</Text>
-            </View>
-          </Animated.View>
-        </View>
-
-        <View style={styles.mainContent}>
-          <Animated.View 
-            entering={FadeInDown.delay(300).duration(800).springify()}
-            style={[styles.tabsContainer, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)' }]}
-          >
-            <TouchableOpacity 
-              style={[styles.tabButton, activeTab === 'riding' && [styles.activeTabButton, { backgroundColor: theme.surface }]]}
-              onPress={() => setActiveTab('riding')}
-              activeOpacity={0.8}
-            >
-              <Text style={[styles.tabText, activeTab === 'riding' ? [styles.activeTabText, { color: theme.text }] : { color: theme.textMuted }]}>
-                Riding
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity 
-              style={[styles.tabButton, activeTab === 'driving' && [styles.activeTabButton, { backgroundColor: theme.surface }]]}
-              onPress={() => setActiveTab('driving')}
-              activeOpacity={0.8}
-            >
-              <Text style={[styles.tabText, activeTab === 'driving' ? [styles.activeTabText, { color: theme.text }] : { color: theme.textMuted }]}>
-                Driving
-              </Text>
-            </TouchableOpacity>
-          </Animated.View>
-
-          {isLoading && !refreshing ? (
-            <View style={{ marginTop: 40 }}>
-              <ActivityIndicator size="large" color={theme.primary} />
-            </View>
-          ) : (
-            <Animated.View 
-              key={activeTab} // Forces re-animation when switching tabs
-              entering={FadeInDown.duration(600).springify()}
-            >
-              {activeTab === 'driving' ? renderDrivingRides() : renderRidingBookings()}
-            </Animated.View>
-          )}
-        </View>
-      </ScrollView>
+      />
     </View>
   );
 }
@@ -308,11 +320,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   activeTabButton: {
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
+    // Removed the generic drop shadow in favor of a cleaner text-highlight approach as per /quieter
   },
   tabText: {
     fontSize: 15,

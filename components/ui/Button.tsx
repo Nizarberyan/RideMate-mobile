@@ -66,24 +66,24 @@ export const Button = ({
         };
       case 'danger':
         return {
-          backgroundColor: isDark ? '#3d1212' : '#fee2e2',
+          backgroundColor: theme.dangerBg,
         };
       case 'black':
         return {
-          backgroundColor: isDark ? theme.primary : '#151515',
-          shadowColor: '#000',
+          backgroundColor: isDark ? theme.primary : theme.text,
+          shadowColor: theme.shadow,
           shadowOffset: { width: 0, height: 4 },
-          shadowOpacity: 0.2,
-          shadowRadius: 8,
+          shadowOpacity: 1,
+          shadowRadius: 12,
           elevation: 4,
         };
       case 'brand':
         return {
-          backgroundColor: '#151515',
-          shadowColor: '#000',
+          backgroundColor: theme.text,
+          shadowColor: theme.shadow,
           shadowOffset: { width: 0, height: 4 },
-          shadowOpacity: 0.3,
-          shadowRadius: 10,
+          shadowOpacity: 1,
+          shadowRadius: 12,
           elevation: 5,
         };
       default:
@@ -94,18 +94,18 @@ export const Button = ({
   const getTextStyle = () => {
     switch (variant) {
       case 'primary':
-        return { color: '#151515' };
+        return { color: isDark ? theme.background : theme.text };
       case 'secondary':
       case 'outline':
         return { color: theme.text };
       case 'danger':
-        return { color: '#ef4444' };
+        return { color: theme.danger };
       case 'black':
-        return { color: isDark ? '#151515' : '#ffffff' };
+        return { color: isDark ? theme.background : theme.background };
       case 'brand':
-        return { color: '#C1F11D' };
+        return { color: theme.primary };
       default:
-        return { color: '#151515' };
+        return { color: isDark ? theme.background : theme.text };
     }
   };
 
@@ -142,15 +142,18 @@ export const Button = ({
   });
 
   const handlePressIn = () => {
-    scale.value = withSpring(0.96, { damping: 10, stiffness: 300 });
+    scale.value = withSpring(0.96, { damping: 15, stiffness: 400 });
   };
 
   const handlePressOut = () => {
-    scale.value = withSpring(1, { damping: 10, stiffness: 300 });
+    scale.value = withSpring(1, { damping: 15, stiffness: 400 });
   };
 
   return (
     <AnimatedPressable
+      accessibilityRole="button"
+      accessibilityLabel={props.accessibilityLabel || label}
+      accessibilityState={{ disabled: disabled || isLoading, busy: isLoading }}
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
       style={[
