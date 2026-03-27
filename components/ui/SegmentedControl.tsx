@@ -53,6 +53,8 @@ export function SegmentedControl({ options, selectedValue, onValueChange, style 
                   isActive ? { color: theme.text, fontWeight: '900' } : { color: theme.textMuted, fontWeight: '700' },
                   option.icon ? { marginLeft: 8 } : null
                 ]}
+                numberOfLines={1}
+                ellipsizeMode="tail"
               >
                 {option.label}
               </Text>
@@ -83,8 +85,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 1,
+    paddingHorizontal: 8,
   },
   label: {
     fontSize: 15,
+    flexShrink: 1,
   },
 });

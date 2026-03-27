@@ -1,0 +1,357 @@
+{
+  "dashboard": {
+    "welcome": "Bon retour,",
+    "label": "TABLEAU DE BORD",
+    "carbonSaved": "{{count}} kg économisés",
+    "tabs": {
+      "riding": "Passager",
+      "driving": "Conducteur"
+    },
+    "empty": {
+      "noRides": "Aucun trajet proposé pour le moment.",
+      "noBookings": "Aucun voyage prévu.",
+      "findRide": "Trouver un trajet"
+    },
+    "card": {
+      "seatsLeft": "{{count}} places libres",
+      "bookings": "{{count}} Réservations",
+      "seatBooked": "Place réservée",
+      "seatsBooked": "Places réservées",
+      "viewRide": "Voir le trajet"
+    }
+  },
+  "common": {
+    "loading": "Chargement...",
+    "error": "Erreur",
+    "ok": "OK",
+    "cancel": "Annuler",
+    "confirm": "Confirmer",
+    "save": "Enregistrer",
+    "delete": "Supprimer",
+    "back": "Retour",
+    "none": "Aucun",
+    "search": "Rechercher",
+    "edit": "Modifier",
+    "notice": "Avis",
+    "done": "Terminé",
+    "tabs": {
+      "home": "Accueil",
+      "search": "Rechercher",
+      "bookings": "Réservations",
+      "offer": "Proposer",
+      "profile": "Profil"
+    }
+  },
+  "settings": {
+    "title": "Modifier le Profil",
+    "info": {
+      "title": "Informations Publiques",
+      "subtitle": "Visible par les autres membres",
+      "name": "Nom Complet",
+      "city": "Ville de résidence",
+      "bio": "Bio",
+      "placeholder": {
+        "name": "ex: Jean Dupont",
+        "city": "ex: Paris",
+        "bio": "Parlez-nous un peu de vous..."
+      },
+      "map": {
+        "title": "Confirmer la ville",
+        "select": "Appuyez pour sélectionner sur la carte"
+      }
+    },
+    "vehicle": {
+      "title": "Détails du Véhicule",
+      "subtitle": "Requis pour proposer des trajets",
+      "model": "Modèle du véhicule",
+      "color": "Couleur",
+      "plate": "Plaque d'immatriculation",
+      "placeholder": {
+        "model": "ex: Tesla Model 3",
+        "color": "ex: Argent",
+        "plate": "ex: ABC-1234"
+      }
+    },
+    "preferences": {
+      "title": "Préférences",
+      "subtitle": "Apparence et comportement de l'application",
+      "darkMode": "Mode Sombre",
+      "darkModeSubtitle": "Basculer entre les thèmes clair et sombre",
+      "language": "Langue",
+      "radius": "Rayon de recherche intra-urbain (km)"
+    },
+    "actions": {
+      "save": "Enregistrer les modifications",
+      "signOut": "Se déconnecter",
+      "dangerZone": "Zone de Danger"
+    },
+    "dialogs": {
+      "permission": {
+        "title": "Permission requise",
+        "message": "Nous avons besoin d'accéder à votre bibliothèque de photos pour définir une photo de profil."
+      },
+      "success": {
+        "title": "Profil enregistré",
+        "message": "Votre profil a été mis à jour avec succès."
+      }
+    }
+  },
+  "profile": {
+    "activity": {
+      "title": "Activité & Historique",
+      "subtitle": "Consultez vos réservations et trajets passés",
+      "bookingHistory": "Historique des réservations",
+      "rideHistory": "Historique des trajets"
+    },
+    "info": {
+      "title": "Informations Personnelles",
+      "subtitle": "Détails de votre profil",
+      "bio": "Bio",
+      "noBio": "Pas encore de bio. Appuyez sur les paramètres pour en ajouter une !",
+      "city": "Ville de résidence",
+      "notSet": "Non défini",
+      "radius": "Rayon de recherche"
+    },
+    "vehicle": {
+      "title": "Détails du Véhicule",
+      "subtitle": "Votre véhicule enregistré pour les trajets",
+      "model": "Modèle",
+      "color": "Couleur",
+      "plate": "Plaque d'immatriculation"
+    },
+    "reviews": {
+      "title": "Avis",
+      "subtitle": "Ce que les autres disent de vous",
+      "seeAll": "Voir tout",
+      "noReviews": "Pas encore d'avis"
+    }
+  },
+  "offer": {
+    "title": "Proposer un trajet",
+    "subtitle": "REMPLISSEZ LES DÉTAILS DU VOYAGE",
+    "types": {
+      "intra": "Intra-urbain",
+      "inter": "Ville à ville"
+    },
+    "fields": {
+      "departure": "Lieu de départ",
+      "destination": "Destination",
+      "time": "Heure de départ",
+      "seats": "Places",
+      "notes": "Notes complémentaires",
+      "placeholders": {
+        "departure": "Appuyez pour sélectionner",
+        "destination": "Appuyez pour sélectionner",
+        "time": "Date & Heure",
+        "notes": "Règles ou détails de prise en charge ?"
+      }
+    },
+    "safety": {
+      "title": "Confiance & Sécurité",
+      "photoRequired": "Photo vérifiée requise",
+      "photoSub": "Seules les personnes avec une photo peuvent réserver",
+      "minRating": "Note minimale",
+      "minRatingSub": "Exiger une note minimale pour réserver"
+    },
+    "actions": {
+      "submit": "Publier l'offre",
+      "confirmTime": "Confirmer l'heure",
+      "confirmDate": "Confirmer la sélection",
+      "confirmMap": "Confirmer {{mode}}"
+    },
+    "warnings": {
+      "noVehicle": {
+        "title": "Véhicule manquant",
+        "text": "Vous devez ajouter les détails de votre véhicule dans votre profil avant de pouvoir proposer un trajet.",
+        "button": "Aller au profil"
+      },
+      "outOfBounds": {
+        "title": "Hors limites",
+        "text": "Les trajets intra-urbains doivent être dans {{city}}. Passez en 'Ville à ville' pour voyager entre villes."
+      }
+    },
+    "dialogs": {
+      "missing": {
+        "title": "Informations manquantes",
+        "message": "Veuillez remplir tous les détails (départ, destination, date et places)."
+      },
+      "success": {
+        "title": "Trajet proposé !",
+        "message": "Redirection vers votre tableau de bord..."
+      }
+    }
+  },
+  "ride": {
+    "details": {
+      "title": "Détails du trajet",
+      "pickup": "DÉPART",
+      "dropoff": "ARRIVÉE",
+      "driverTitle": "Votre conducteur",
+      "rideInfo": "Informations sur le trajet",
+      "seats": "Places",
+      "seatsAvailable": "{{count}} disponibles",
+      "co2": "CO2 économisé",
+      "status": "Statut",
+      "driverNote": "Note du conducteur",
+      "passengers": "Passagers ({{count}})",
+      "noPlate": "Plaque non fournie",
+      "requirements": "Conditions de réservation",
+      "verifiedPhoto": "Photo vérifiée",
+      "minRating": "Note {{rating}}+",
+      "notMet": "Vous ne remplissez pas les conditions du conducteur."
+    },
+    "passengerCard": {
+      "unknown": "Passager",
+      "seats": "{{count}} place",
+      "seats_plural": "{{count}} places"
+    },
+    "status": {
+      "active": "Actif",
+      "cancelled": "Annulé",
+      "completed": "Terminé",
+      "pending": "En attente",
+      "confirmed": "Confirmé"
+    },
+    "actions": {
+      "book": "Réserver",
+      "locked": "Verrouillé",
+      "full": "Complet",
+      "cancelBooking": "Annuler la réservation",
+      "cancelRide": "Annuler le trajet",
+      "complete": "Terminer le trajet",
+      "edit": "Modifier",
+      "confirm": "Confirmer",
+      "reject": "Refuser",
+      "review": "Noter le passager",
+      "reviewDriver": "Noter le conducteur"
+    },
+    "dialogs": {
+      "ownRide": "Vous ne pouvez pas réserver votre propre trajet.",
+      "confirmBooking": {
+        "title": "Confirmer la réservation",
+        "message": "Réserver 1 place de {{from}} à {{to}} ?"
+      },
+      "booked": {
+        "title": "🎉 Trajet réservé !",
+        "message": "Votre place a été réservée. Bon voyage !",
+        "button": "Retour à l'accueil"
+      },
+      "cancelBooking": {
+        "title": "Annuler la réservation",
+        "message": "Voulez-vous vraiment annuler votre réservation pour ce trajet ?",
+        "keep": "Garder la réservation",
+        "yes": "Oui, annuler"
+      },
+      "cancelRide": {
+        "title": "Annuler le trajet",
+        "message": "Voulez-vous vraiment annuler ce trajet ? Toutes les réservations seront également annulées.",
+        "keep": "Garder le trajet",
+        "yes": "Oui, annuler"
+      },
+      "completeRide": {
+        "title": "Terminer le trajet",
+        "message": "Marquer ce trajet comme terminé ? Les passagers pourront ensuite être notés."
+      }
+    }
+  },
+  "bookings": {
+    "title": "Mes réservations",
+    "total": "{{count}} voyage au total",
+    "total_plural": "{{count}} voyages au total",
+    "empty": {
+      "title": "Aucune réservation",
+      "subtitle": "Trouvez un trajet et réservez votre première place !"
+    },
+    "sections": {
+      "upcoming": "À venir",
+      "past": "Passés",
+      "cancelled": "Annulés"
+    }
+  },
+  "search": {
+    "title": "Trouvez votre prochain trajet",
+    "placeholders": {
+      "fromCity": "Départ (Ville)",
+      "toCity": "Destination (Ville)",
+      "fromIntra": "Où dans votre ville ?",
+      "toIntra": "Quelle destination ?",
+      "date": "Quand voulez-vous partir ?"
+    },
+    "results": {
+      "found": "{{count}} trajets trouvés",
+      "inCity": "Trajets à {{city}}",
+      "all": "Tous les trajets",
+      "near": "PRÈS DE CHEZ VOUS",
+      "empty": "Aucun trajet trouvé. Essayez une autre recherche."
+    },
+    "card": {
+      "left": "{{count}} restante(s)"
+    }
+  },
+  "auth": {
+    "login": {
+      "title": "Bienvenue sur RideMate",
+      "email": "Adresse e-mail",
+      "password": "Mot de passe",
+      "submit": "Se connecter",
+      "noAccount": "Pas encore de compte ?",
+      "signupLink": "S'inscrire",
+      "error": {
+        "missing": "Veuillez entrer l'e-mail et le mot de passe",
+        "failed": "Échec de la connexion"
+      }
+    },
+    "signup": {
+      "title": "Créer un compte",
+      "subtitle": "Rejoignez la communauté. Explorez. Voyagez.",
+      "name": "Nom complet",
+      "email": "E-mail",
+      "password": "Mot de passe",
+      "passwordHelper": "Minimum 6 caractères",
+      "submit": "S'inscrire",
+      "hasAccount": "Déjà un compte ?",
+      "signinLink": "Se connecter",
+      "error": {
+        "missing": "Veuillez remplir tous les champs",
+        "shortPassword": "Le mot de passe doit faire au moins 6 caractères",
+        "failed": "Échec de l'inscription"
+      }
+    }
+  },
+  "notifications": {
+    "title": "Notifications",
+    "empty": {
+      "title": "Aucune notification",
+      "subtitle": "Nous vous préviendrons quand quelque chose d'important arrivera."
+    }
+  },
+  "reviews": {
+    "title": "Évaluez votre expérience",
+    "rateLabel": "NOTER",
+    "instruction": "Comment s'est passé le trajet ?",
+    "selectRating": "Sélectionnez une note",
+    "commentLabel": "AJOUTER UN COMMENTAIRE (OPTIONNEL)",
+    "commentPlaceholder": "Dites-nous en plus sur votre expérience...",
+    "submit": "Envoyer l'avis",
+    "submitting": "Envoi en cours...",
+    "safetyNote": "Les avis sont publics et visibles par les autres utilisateurs.",
+    "success": {
+      "title": "Avis partagé !",
+      "subtitle": "Vos commentaires aident à assurer la sécurité de la communauté."
+    },
+    "levels": {
+      "poor": "Médiocre",
+      "fair": "Passable",
+      "good": "Bien",
+      "veryGood": "Très bien",
+      "excellent": "Excellent"
+    },
+    "error": {
+      "ratingRequired": "Sélection requise",
+      "ratingMessage": "Veuillez sélectionner une note.",
+      "missingInfo": "Données manquantes",
+      "missingMessage": "Les données requises pour l'avis sont manquantes.",
+      "failed": "Échec de l'envoi de l'avis"
+    }
+  }
+}

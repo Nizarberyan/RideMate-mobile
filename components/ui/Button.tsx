@@ -38,7 +38,7 @@ export const Button = ({
   disabled,
   ...props
 }: ButtonProps) => {
-  const { theme, isDark } = useTheme();
+  const { theme, isDark, spacing, typography } = useTheme();
   const scale = useSharedValue(1);
 
   const getVariantStyle = () => {
@@ -112,26 +112,26 @@ export const Button = ({
   const getSizeStyle = () => {
     switch (size) {
       case 'sm':
-        return { height: 44, paddingHorizontal: 16, borderRadius: 12 };
+        return { height: 44, paddingHorizontal: spacing.lg, borderRadius: 12 };
       case 'md':
-        return { height: 56, paddingHorizontal: 24, borderRadius: 18 };
+        return { height: 56, paddingHorizontal: spacing.xl, borderRadius: 18 };
       case 'lg':
-        return { height: 64, paddingHorizontal: 32, borderRadius: 24 };
+        return { height: 64, paddingHorizontal: spacing.xxl, borderRadius: 24 };
       default:
-        return { height: 56, paddingHorizontal: 24, borderRadius: 18 };
+        return { height: 56, paddingHorizontal: spacing.xl, borderRadius: 18 };
     }
   };
 
   const getTextSizeStyle = (): TextStyle => {
     switch (size) {
       case 'sm':
-        return { fontSize: 14, fontWeight: '800' };
+        return typography.subtextBold;
       case 'md':
-        return { fontSize: 16, fontWeight: '800' };
+        return typography.bodyBold;
       case 'lg':
-        return { fontSize: 18, fontWeight: '900' };
+        return typography.h3;
       default:
-        return { fontSize: 16, fontWeight: '800' };
+        return typography.bodyBold;
     }
   };
 
@@ -172,7 +172,13 @@ export const Button = ({
       ) : (
         <>
           {icon}
-          <Text style={[styles.text, getTextSizeStyle(), getTextStyle(), textStyle]}>{label}</Text>
+          <Text 
+            style={[getTextSizeStyle(), styles.text, getTextStyle(), textStyle]} 
+            numberOfLines={1}
+            ellipsizeMode="tail"
+          >
+            {label}
+          </Text>
         </>
       )}
     </AnimatedPressable>
@@ -187,7 +193,9 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   text: {
-    letterSpacing: -0.5,
+    // Removed negative letterSpacing as it breaks Arabic cursive rendering and causes measurement issues
+    flexShrink: 1,
+    letterSpacing: 0,
   },
   disabled: {
     opacity: 0.5,

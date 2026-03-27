@@ -8,108 +8,56 @@ import {
   RefreshControl,
   TouchableOpacity,
   Image,
-  Modal,
   Dimensions,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import * as SecureStore from "expo-secure-store";
-import * as ImagePicker from "expo-image-picker";
-import { GoogleMaps, AppleMaps } from 'expo-maps';
-const MapView = Platform.OS === 'ios' ? AppleMaps.View : GoogleMaps.View;
-import * as Location from "expo-location";
 import {
   User as UserIcon,
   Car,
-  Save,
-  LogOut,
   MapPin,
   Settings,
-  Camera,
-  X,
-  Map,
-  CheckCircle2,
   Star,
+  Leaf,
   MessageSquare,
   ChevronRight,
+  History,
+  Ticket,
+  Archive,
+  Info,
 } from "lucide-react-native";
+import { useTranslation } from "react-i18next";
 
-const { width, height } = Dimensions.get("window");
+const { width } = Dimensions.get("window");
 import { useAuth } from "../../context/AuthContext";
 import { useTheme } from "../../context/ThemeContext";
-import { Button, Input, Card, Toggle, ConfirmDialog } from "../../components/ui";
-import { MapSearchBar } from '../../components/ui/MapSearchBar';
-import { MapMarker } from '../../components/ui/MapMarker';
 import Animated, { FadeInDown, FadeInUp } from "react-native-reanimated";
-import { Platform } from "react-native";
 
 export default function Profile() {
   const router = useRouter();
-  const { user, client, signIn, signOut } = useAuth();
-  const { theme, isDark, toggleTheme } = useTheme();
+  const { user, client } = useAuth();
+  const { theme, isDark } = useTheme();
   const insets = useSafeAreaInsets();
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const { t } = useTranslation();
   const [refreshing, setRefreshing] = useState(false);
   const [reviews, setReviews] = useState<any[]>([]);
   const [isLoadingReviews, setIsLoadingReviews] = useState(false);
 
-  type DialogConfig = {
-    visible: boolean;
-    title: string;
-    message?: string;
-    icon?: React.ReactNode;
-    actions: { label: string; onPress: () => void; style?: 'default' | 'destructive' | 'cancel' }[];
-  };
-  const [dialog, setDialog] = useState<DialogConfig>({ visible: false, title: '', actions: [] });
-  const dismissDialog = () => setDialog(prev => ({ ...prev, visible: false }));
-
-  const [formData, setFormData] = useState({
-    name: "",
-    bio: "",
-    city: "",
-    radius: "50",
-    latitude: null as number | null,
-    longitude: null as number | null,
-    photo: "",
-    vehicleModel: "",
-    vehicleColor: "",
-    vehiclePlate: "",
-  });
-
-  const [mapModalVisible, setMapModalVisible] = useState(false);
-  const [mapRegion, setMapRegion] = useState({
-    latitude: 37.78825,
-    longitude: -122.4324,
-    latitudeDelta: 0.0922,
-    longitudeDelta: 0.0421,
-  });
-  const mapRef = React.useRef<any>(null);
-
   const loadProfile = useCallback(async () => {
     try {
-      const updatedUser = await client.auth.getProfile();
-      const token = await client.getToken();
-      const refreshToken = await SecureStore.getItemAsync("refresh_token");
-
-      if (token && refreshToken) {
-        await signIn({
-          access_token: token,
-          refresh_token: refreshToken,
-          user: updatedUser,
-        });
-      }
-      
       // Load reviews
       setIsLoadingReviews(true);
-      const userReviews = await client.reviews.getForUser(updatedUser.id);
-      setReviews(userReviews);
+      if (user?.id) {
+        const userReviews = await client.reviews.getForUser(user.id);
+        setReviews(userReviews);
+      }
     } catch (e) {
-      console.error("Failed to refresh profile:", e);
+      console.error("Failed to load reviews:", e);
     } finally {
       setRefreshing(false);
       setIsLoadingReviews(false);
     }
-  }, [client, signIn]);
+  }, [client, user?.id]);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
@@ -117,169 +65,8 @@ export default function Profile() {
   }, [loadProfile]);
 
   useEffect(() => {
-    if (user) {
-      setFormData({
-        name: user.name || "",
-        bio: user.bio || "",
-        city: user.city || "",
-        radius: user.radius?.toString() || "50",
-        latitude: user.latitude || null,
-        longitude: user.longitude || null,
-        photo: user.photo || "",
-        vehicleModel: user.vehicleModel || "",
-        vehicleColor: user.vehicleColor || "",
-        vehiclePlate: user.vehiclePlate || "",
-      });
-    }
-  }, [user]);
-
-  const pickImage = async () => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-
-    if (status !== "granted") {
-      setDialog({
-        visible: true,
-        title: 'Permission Needed',
-        message: 'We need access to your photo library to set a profile picture.',
-        actions: [{ label: 'OK', onPress: dismissDialog, style: 'cancel' }],
-      });
-      return;
-    }
-
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ["images"],
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.5,
-      base64: true,
-    });
-
-    if (!result.canceled) {
-      // For a real app, you'd upload this to S3/Cloudinary.
-      // For this prototype, we'll send the base64 string if it's small enough,
-      // or just keep it as a local URI if the backend doesn't store it.
-      // Let's use base64 for now so it "persists" in the DB.
-      const base64Image = `data:image/jpeg;base64,${result.assets[0].base64}`;
-      setFormData({ ...formData, photo: base64Image });
-    }
-  };
-
-  const removeImage = () => {
-    setFormData({ ...formData, photo: "" });
-  };
-
-  const safelyMoveCamera = async (coords: { latitude: number, longitude: number }, zoom = 15) => {
-    try {
-      if (mapRef.current) {
-        await mapRef.current.setCameraPosition({ coordinates: coords, zoom });
-      }
-    } catch (err) {
-      // Silently handle animation cancellation during unmount
-    }
-  };
-
-  const openCityMap = async () => {
-    setMapModalVisible(true);
-
-
-    try {
-      if (!formData.latitude) {
-        let { status } = await Location.requestForegroundPermissionsAsync();
-        if (status !== "granted") return;
-
-        const lastKnown = await Location.getLastKnownPositionAsync({});
-        if (lastKnown) {
-          const lat = lastKnown.coords.latitude;
-          const lng = lastKnown.coords.longitude;
-          setMapRegion(prev => ({ ...prev, latitude: lat, longitude: lng }));
-          await safelyMoveCamera({ latitude: lat, longitude: lng });
-        }
-
-        const location = await Location.getCurrentPositionAsync({
-          accuracy: Location.Accuracy.Balanced,
-        });
-
-        if (location) {
-          const lat = location.coords.latitude;
-          const lng = location.coords.longitude;
-          setMapRegion(prev => ({ ...prev, latitude: lat, longitude: lng }));
-          await safelyMoveCamera({ latitude: lat, longitude: lng });
-        }
-      } else {
-        const lat = formData.latitude;
-        const lng = formData.longitude!;
-        setMapRegion(prev => ({ ...prev, latitude: lat, longitude: lng }));
-        await safelyMoveCamera({ latitude: lat, longitude: lng });
-      }
-    } catch (e) {
-      console.log("Location fetch skipped or failed");
-    }
-  };
-
-  const handleCityMapConfirm = async () => {
-    const coords = {
-      latitude: mapRegion.latitude,
-      longitude: mapRegion.longitude,
-    };
-    setFormData({
-      ...formData,
-      latitude: coords.latitude,
-      longitude: coords.longitude,
-    });
-
-    // Try to get city name
-    try {
-      const address = await Location.reverseGeocodeAsync(coords);
-      if (address[0]) {
-        setFormData((prev) => ({
-          ...prev,
-          city: address[0].city || address[0].region || "",
-        }));
-      }
-    } catch (e) { }
-
-    setMapModalVisible(false);
-  };
-
-  const handleSubmit = async () => {
-    setIsSubmitting(true);
-    try {
-      const updateData = {
-        ...formData,
-        radius: parseFloat(formData.radius) || 50,
-        latitude: formData.latitude ?? undefined,
-        longitude: formData.longitude ?? undefined,
-      };
-      const updatedUser = await client.auth.updateProfile(updateData);
-      // Update local context
-      const token = await client.getToken();
-      const refreshToken = await SecureStore.getItemAsync("refresh_token");
-
-      if (token && refreshToken) {
-        await signIn({
-          access_token: token,
-          refresh_token: refreshToken,
-          user: updatedUser,
-        });
-      }
-      setDialog({
-        visible: true,
-        title: 'Profile Saved',
-        message: 'Your profile has been updated successfully.',
-        icon: <CheckCircle2 size={26} color="#22c55e" strokeWidth={2.5} />,
-        actions: [{ label: 'Done', onPress: dismissDialog, style: 'default' }],
-      });
-    } catch (e: any) {
-      setDialog({
-        visible: true,
-        title: 'Update Failed',
-        message: (e as Error).message || 'Something went wrong. Please try again.',
-        actions: [{ label: 'OK', onPress: dismissDialog, style: 'cancel' }],
-      });
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
+    loadProfile();
+  }, [loadProfile]);
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
@@ -320,41 +107,22 @@ export default function Profile() {
           >
             <Settings size={22} color={theme.text} />
           </TouchableOpacity>
-          <TouchableOpacity
+          <View
             style={[styles.avatarContainer, { shadowColor: theme.primary }]}
-            onPress={pickImage}
-            activeOpacity={0.8}
           >
             <View
               style={[styles.avatarCircle, { backgroundColor: theme.primary }]}
             >
-              {formData.photo ? (
+              {user?.photo ? (
                 <Image
-                  source={{ uri: formData.photo }}
+                  source={{ uri: user.photo }}
                   style={styles.avatarImage}
                 />
               ) : (
                 <UserIcon size={44} color="#151515" />
               )}
             </View>
-            <View
-              style={[
-                styles.cameraBadge,
-                { backgroundColor: isDark ? "#262626" : "#fff" },
-              ]}
-            >
-              <Camera size={16} color={theme.primary} />
-            </View>
-            {formData.photo ? (
-              <TouchableOpacity
-                style={styles.removeBadge}
-                onPress={removeImage}
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-              >
-                <X size={12} color="#fff" />
-              </TouchableOpacity>
-            ) : null}
-          </TouchableOpacity>
+          </View>
           <Text style={[styles.userName, { color: theme.text }]}>
             {user?.name || "User"}
           </Text>
@@ -362,31 +130,147 @@ export default function Profile() {
             {user?.email}
           </Text>
           
-          <View style={styles.ratingBadge}>
-            <Star size={18} color="#FFD700" fill="#FFD700" />
-            <Text style={[styles.ratingText, { color: theme.text }]}>
-              {user?.rating ? user.rating.toFixed(1) : "No rating"}
-            </Text>
-            {user?.rating ? (
-              <Text style={[styles.ratingCount, { color: theme.textMuted }]}>
-                ({reviews.length})
+          <View style={styles.badgesRow}>
+            <View style={styles.ratingBadge}>
+              <Star size={18} color="#FFD700" fill="#FFD700" />
+              <Text style={[styles.ratingText, { color: theme.text }]}>
+                {user?.rating ? user.rating.toFixed(1) : "N/A"}
               </Text>
-            ) : null}
+              {user?.rating ? (
+                <Text style={[styles.ratingCount, { color: theme.textMuted }]}>
+                  ({reviews.length})
+                </Text>
+              ) : null}
+            </View>
+
+            <View style={[styles.carbonBadge, { backgroundColor: isDark ? 'rgba(16,185,129,0.1)' : 'rgba(16,185,129,0.05)' }]}>
+              <Leaf size={16} color="#10b981" />
+              <Text style={[styles.carbonText, { color: '#10b981' }]}>
+                {user?.carbonSavedKg || 0}kg CO2
+              </Text>
+            </View>
           </View>
         </Animated.View>
 
-        <Animated.View entering={FadeInDown.delay(550).duration(800).springify()} style={styles.section}>
+        {/* Activity & History Section */}
+        <Animated.View entering={FadeInDown.delay(300).duration(800).springify()} style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <View style={[styles.sectionIcon, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)' }]}>
+              <History size={20} color={theme.text} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.sectionTitle, { color: theme.text }]}>{t('profile.activity.title')}</Text>
+              <Text style={[styles.sectionSubtitle, { color: theme.textMuted }]}>{t('profile.activity.subtitle')}</Text>
+            </View>
+          </View>
+
+          <View style={[styles.sectionContent, { gap: 12 }]}>
+            <TouchableOpacity 
+              style={[styles.historyLink, { backgroundColor: theme.surface }]}
+              onPress={() => router.push('/user/archive-bookings')}
+              activeOpacity={0.7}
+            >
+              <View style={[styles.historyIcon, { backgroundColor: isDark ? 'rgba(99, 102, 241, 0.1)' : 'rgba(99, 102, 241, 0.05)' }]}>
+                <Ticket size={18} color="#6366f1" />
+              </View>
+              <Text style={[styles.historyText, { color: theme.text }]}>{t('profile.activity.bookingHistory')}</Text>
+              <ChevronRight size={18} color={theme.textMuted} />
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={[styles.historyLink, { backgroundColor: theme.surface }]}
+              onPress={() => router.push('/user/archive-rides')}
+              activeOpacity={0.7}
+            >
+              <View style={[styles.historyIcon, { backgroundColor: isDark ? 'rgba(16, 185, 129, 0.1)' : 'rgba(16, 185, 129, 0.05)' }]}>
+                <Archive size={18} color="#10b981" />
+              </View>
+              <Text style={[styles.historyText, { color: theme.text }]}>{t('profile.activity.rideHistory')}</Text>
+              <ChevronRight size={18} color={theme.textMuted} />
+            </TouchableOpacity>
+          </View>
+        </Animated.View>
+
+        {/* Info Section */}
+        <Animated.View entering={FadeInDown.delay(400).duration(800).springify()} style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <View style={[styles.sectionIcon, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)' }]}>
+              <Info size={20} color={theme.text} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.sectionTitle, { color: theme.text }]}>{t('profile.info.title')}</Text>
+              <Text style={[styles.sectionSubtitle, { color: theme.textMuted }]}>{t('profile.info.subtitle')}</Text>
+            </View>
+          </View>
+
+          <View style={[styles.sectionContent, { gap: 16 }]}>
+            <View style={[styles.infoCard, { backgroundColor: theme.surface }]}>
+              <Text style={[styles.infoLabel, { color: theme.textMuted }]}>{t('profile.info.bio')}</Text>
+              <Text style={[styles.infoValue, { color: theme.text }]}>
+                {user?.bio || t('profile.info.noBio')}
+              </Text>
+            </View>
+
+            <View style={styles.infoRow}>
+              <View style={[styles.infoCard, { backgroundColor: theme.surface, flex: 1 }]}>
+                <Text style={[styles.infoLabel, { color: theme.textMuted }]}>{t('profile.info.city')}</Text>
+                <View style={styles.row}>
+                  <MapPin size={14} color={theme.primary} style={{ marginRight: 4 }} />
+                  <Text style={[styles.infoValue, { color: theme.text }]}>{user?.city || t('profile.info.notSet')}</Text>
+                </View>
+              </View>
+              <View style={[styles.infoCard, { backgroundColor: theme.surface, flex: 1 }]}>
+                <Text style={[styles.infoLabel, { color: theme.textMuted }]}>{t('profile.info.radius')}</Text>
+                <Text style={[styles.infoValue, { color: theme.text }]}>{user?.radius || 50} km</Text>
+              </View>
+            </View>
+          </View>
+        </Animated.View>
+
+        {/* Vehicle Section */}
+        {user?.vehicleModel && (
+          <Animated.View entering={FadeInDown.delay(500).duration(800).springify()} style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <View style={[styles.sectionIcon, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)' }]}>
+                <Car size={20} color={theme.text} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.sectionTitle, { color: theme.text }]}>{t('profile.vehicle.title')}</Text>
+                <Text style={[styles.sectionSubtitle, { color: theme.textMuted }]}>{t('profile.vehicle.subtitle')}</Text>
+              </View>
+            </View>
+
+            <View style={[styles.sectionContent, { gap: 16 }]}>
+              <View style={[styles.infoCard, { backgroundColor: theme.surface }]}>
+                <Text style={[styles.infoLabel, { color: theme.textMuted }]}>{t('profile.vehicle.model')}</Text>
+                <Text style={[styles.infoValue, { color: theme.text }]}>{user.vehicleModel}</Text>
+              </View>
+              <View style={styles.infoRow}>
+                <View style={[styles.infoCard, { backgroundColor: theme.surface, flex: 1 }]}>
+                  <Text style={[styles.infoLabel, { color: theme.textMuted }]}>{t('profile.vehicle.color')}</Text>
+                  <Text style={[styles.infoValue, { color: theme.text }]}>{user.vehicleColor || t('profile.info.notSet')}</Text>
+                </View>
+                <View style={[styles.infoCard, { backgroundColor: theme.surface, flex: 1 }]}>
+                  <Text style={[styles.infoLabel, { color: theme.textMuted }]}>{t('profile.vehicle.plate')}</Text>
+                  <Text style={[styles.infoValue, { color: theme.text, fontWeight: '900' }]}>{user.vehiclePlate || t('profile.info.notSet')}</Text>
+                </View>
+              </View>
+            </View>
+          </Animated.View>
+        )}
+
+        <Animated.View entering={FadeInDown.delay(600).duration(800).springify()} style={styles.section}>
           <View style={styles.sectionHeader}>
             <View style={[styles.sectionIcon, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)' }]}>
               <MessageSquare size={20} color={theme.text} />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={[styles.sectionTitle, { color: theme.text }]}>Reviews</Text>
-              <Text style={[styles.sectionSubtitle, { color: theme.textMuted }]}>What others are saying about you</Text>
+              <Text style={[styles.sectionTitle, { color: theme.text }]}>{t('profile.reviews.title')}</Text>
+              <Text style={[styles.sectionSubtitle, { color: theme.textMuted }]}>{t('profile.reviews.subtitle')}</Text>
             </View>
             {reviews.length > 3 && (
               <TouchableOpacity onPress={() => router.push({ pathname: '/rides/user-reviews', params: { userId: user?.id } })}>
-                <Text style={{ color: theme.primary, fontWeight: '700' }}>See All</Text>
+                <Text style={{ color: theme.primary, fontWeight: '700' }}>{t('profile.reviews.seeAll')}</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -423,219 +307,14 @@ export default function Profile() {
               ))
             ) : (
               <View style={styles.emptyReviews}>
-                <Text style={{ color: theme.textMuted, fontStyle: 'italic' }}>No reviews yet</Text>
+                <Text style={{ color: theme.textMuted, fontStyle: 'italic' }}>{t('profile.reviews.noReviews')}</Text>
               </View>
             )}
           </View>
         </Animated.View>
 
-        <Animated.View entering={FadeInDown.delay(500).duration(800).springify()} style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <View style={[styles.sectionIcon, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)' }]}>
-              <UserIcon size={20} color={theme.text} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.sectionTitle, { color: theme.text }]}>General Information</Text>
-              <Text style={[styles.sectionSubtitle, { color: theme.textMuted }]}>Manage your public profile details</Text>
-            </View>
-          </View>
-
-          <View style={styles.sectionContent}>
-            <Input
-              label="Full Name"
-              value={formData.name}
-              onChangeText={(text) => setFormData({ ...formData, name: text })}
-              placeholder="e.g. John Doe"
-            />
-
-            <View style={styles.inputWithButton}>
-              <View style={{ flex: 1 }}>
-                <Input
-                  label="Home City"
-                  leftIcon={<MapPin size={20} color={theme.primary} />}
-                  value={formData.city}
-                  onChangeText={(text) =>
-                    setFormData({ ...formData, city: text })
-                  }
-                  placeholder="e.g. San Francisco"
-                  containerStyle={{ marginBottom: 0 }}
-                />
-              </View>
-              <TouchableOpacity
-                style={[
-                  styles.mapButton,
-                  {
-                    backgroundColor: isDark
-                      ? "rgba(255,255,255,0.05)"
-                      : "#f3f4f6",
-                  },
-                ]}
-                onPress={openCityMap}
-              >
-                <Map size={20} color={theme.primary} />
-              </TouchableOpacity>
-            </View>
-
-            <Input
-              label="Bio"
-              value={formData.bio}
-              onChangeText={(text) => setFormData({ ...formData, bio: text })}
-              placeholder="Share a bit about yourself with the community..."
-              multiline
-              numberOfLines={4}
-            />
-          </View>
-        </Animated.View>
-
-        <Animated.View entering={FadeInDown.delay(600).duration(800).springify()} style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <View style={[styles.sectionIcon, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)' }]}>
-              <Car size={20} color={theme.text} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.sectionTitle, { color: theme.text }]}>Vehicle Details</Text>
-              <Text style={[styles.sectionSubtitle, { color: theme.textMuted }]}>Add your car info to start hosting rides</Text>
-            </View>
-          </View>
-
-          <View style={styles.sectionContent}>
-            <Input
-              label="Vehicle Model"
-              value={formData.vehicleModel}
-              onChangeText={(text) =>
-                setFormData({ ...formData, vehicleModel: text })
-              }
-              placeholder="e.g. Tesla Model 3"
-            />
-
-            <View style={styles.row}>
-              <View style={{ flex: 1, marginRight: 12 }}>
-                <Input
-                  label="Color"
-                  value={formData.vehicleColor}
-                  onChangeText={(text) =>
-                    setFormData({ ...formData, vehicleColor: text })
-                  }
-                  placeholder="e.g. Silver"
-                />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Input
-                  label="License Plate"
-                  value={formData.vehiclePlate}
-                  onChangeText={(text) =>
-                    setFormData({ ...formData, vehiclePlate: text })
-                  }
-                  placeholder="e.g. ABC-1234"
-                />
-              </View>
-            </View>
-          </View>
-        </Animated.View>
-
-        <Animated.View
-          entering={FadeInDown.delay(700).duration(800).springify()}
-        >
-          <Button
-            label="Save Changes"
-            variant="black"
-            size="lg"
-            icon={<Save size={22} color={isDark ? theme.primary : "#fff"} />}
-            onPress={handleSubmit}
-            isLoading={isSubmitting}
-            style={styles.saveButton}
-          />
-        </Animated.View>
-
-        <Animated.View
-          entering={FadeInDown.delay(800).duration(800).springify()}
-        >
-          <Button
-            label="Sign Out"
-            variant="danger"
-            size="md"
-            icon={<LogOut size={20} color="#ef4444" />}
-            onPress={signOut}
-            style={styles.logoutButton}
-          />
-        </Animated.View>
-
         <View style={{ height: 40 }} />
       </ScrollView>
-
-      {/* Map Selector Modal */}
-      <Modal
-        visible={mapModalVisible}
-        transparent={false}
-        animationType="slide"
-        onRequestClose={() => setMapModalVisible(false)}
-      >
-        <View style={{ flex: 1, backgroundColor: theme.background }}>
-          <MapView
-            ref={mapRef}
-            style={StyleSheet.absoluteFillObject}
-            onMapLoaded={async () => {
-              await safelyMoveCamera({ latitude: mapRegion.latitude, longitude: mapRegion.longitude });
-              await new Promise(resolve => setTimeout(resolve, 400));
-              await safelyMoveCamera({ latitude: mapRegion.latitude, longitude: mapRegion.longitude });
-            }}
-            uiSettings={{
-              myLocationButtonEnabled: true,
-            }}
-            properties={{
-              isMyLocationEnabled: true,
-            }}
-            onCameraMove={(event: any) => {
-              const lat = event.nativeEvent?.cameraPosition?.coordinates?.latitude ?? event.coordinates?.latitude;
-              const lng = event.nativeEvent?.cameraPosition?.coordinates?.longitude ?? event.coordinates?.longitude;
-              if (lat && lng) {
-                setMapRegion(prev => ({
-                  ...prev,
-                  latitude: lat,
-                  longitude: lng,
-                }));
-              }
-            }}
-          />
-          <MapMarker />
-
-          <View style={styles.mapOverlayTop}>
-            <TouchableOpacity
-              style={[
-                styles.closeMapButton,
-                { backgroundColor: theme.surface },
-              ]}
-              onPress={() => setMapModalVisible(false)}
-            >
-              <X size={24} color={theme.text} />
-            </TouchableOpacity>
-            <MapSearchBar
-              onSelect={async (coords) => {
-                setMapRegion(prev => ({ ...prev, latitude: coords.latitude, longitude: coords.longitude }));
-                await safelyMoveCamera(coords);
-              }}
-            />
-          </View>
-
-          <View style={styles.mapOverlayBottom}>
-            <Button
-              label="Confirm Location"
-              variant="black"
-              size="lg"
-              onPress={handleCityMapConfirm}
-            />
-          </View>
-        </View>
-      </Modal>
-
-      <ConfirmDialog
-        visible={dialog.visible}
-        title={dialog.title}
-        message={dialog.message}
-        icon={dialog.icon}
-        actions={dialog.actions}
-        onDismiss={dismissDialog}
-      />
     </View>
   );
 }
@@ -689,32 +368,6 @@ const styles = StyleSheet.create({
     width: "100%",
     height: "100%",
   },
-  cameraBadge: {
-    position: "absolute",
-    bottom: -4,
-    right: -4,
-    width: 32,
-    height: 32,
-    borderRadius: 12,
-    justifyContent: "center",
-    alignItems: "center",
-    borderWidth: 2,
-    borderColor: "#C1F11D", // Primary color
-    elevation: 2,
-  },
-  removeBadge: {
-    position: "absolute",
-    top: -4,
-    right: -4,
-    backgroundColor: "#ef4444",
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    justifyContent: "center",
-    alignItems: "center",
-    borderWidth: 2,
-    borderColor: "#FFFEE9", // Background color
-  },
   userName: {
     fontSize: 28,
     fontWeight: "900",
@@ -725,6 +378,12 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     marginTop: 6,
   },
+  badgesRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 16,
+  },
   ratingBadge: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -732,8 +391,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 20,
-    marginTop: 12,
     gap: 6,
+  },
+  carbonBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    gap: 6,
+  },
+  carbonText: {
+    fontSize: 14,
+    fontWeight: '800',
   },
   ratingText: {
     fontSize: 15,
@@ -742,6 +412,79 @@ const styles = StyleSheet.create({
   ratingCount: {
     fontSize: 13,
     fontWeight: '600',
+  },
+  section: {
+    marginBottom: 40,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 24,
+    paddingHorizontal: 4,
+  },
+  sectionIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 16,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    letterSpacing: -0.5,
+  },
+  sectionSubtitle: {
+    fontSize: 13,
+    fontWeight: '600',
+    marginTop: 2,
+  },
+  sectionContent: {
+    paddingHorizontal: 4,
+  },
+  historyLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderRadius: 24,
+    gap: 16,
+  },
+  historyIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  historyText: {
+    flex: 1,
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  infoCard: {
+    padding: 16,
+    borderRadius: 24,
+    gap: 4,
+  },
+  infoRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  infoLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  infoValue: {
+    fontSize: 15,
+    fontWeight: '600',
+    lineHeight: 22,
+  },
+  row: {
+    flexDirection: "row",
+    alignItems: 'center',
   },
   reviewItem: {
     paddingVertical: 16,
@@ -783,102 +526,5 @@ const styles = StyleSheet.create({
     padding: 20,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  section: {
-    marginBottom: 40,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 24,
-    paddingHorizontal: 4,
-  },
-  sectionIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 16,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '800',
-    letterSpacing: -0.5,
-  },
-  sectionSubtitle: {
-    fontSize: 13,
-    fontWeight: '600',
-    marginTop: 2,
-  },
-  sectionContent: {
-    paddingHorizontal: 4,
-  },
-  row: {
-    flexDirection: "row",
-  },
-  inputWithButton: {
-    flexDirection: "row",
-    alignItems: "flex-end",
-    gap: 12,
-    marginBottom: 20,
-  },
-  mapButton: {
-    width: 56,
-    height: 56,
-    borderRadius: 18,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  mapOverlayTop: {
-    position: "absolute",
-    top: 60,
-    left: 24,
-    right: 24,
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 12,
-    zIndex: 99,
-  },
-  closeMapButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    justifyContent: "center",
-    alignItems: "center",
-    elevation: 5,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-  },
-  mapBadge: {
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 25,
-    elevation: 5,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-  },
-  mapBadgeText: {
-    fontSize: 14,
-    fontWeight: "900",
-    color: "#151515",
-  },
-  mapOverlayBottom: {
-    position: "absolute",
-    bottom: 40,
-    left: 24,
-    right: 24,
-  },
-  saveButton: {
-    marginTop: 8,
-    borderRadius: 20,
-  },
-  logoutButton: {
-    marginTop: 20,
-    borderRadius: 20,
   },
 });

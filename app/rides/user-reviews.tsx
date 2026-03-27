@@ -21,7 +21,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { Card } from '../../components/ui';
 import Animated, { FadeInDown } from 'react-native-reanimated';
-import { Review } from '@/src/api/client';
+import { Review } from '../../src/api/client';
 
 export default function UserReviews() {
   const { userId, name } = useLocalSearchParams<{ userId: string, name?: string }>();
@@ -37,7 +37,7 @@ export default function UserReviews() {
   const loadReviews = useCallback(async () => {
     if (!userId) return;
     try {
-      const data = await client.users.getReviews(userId);
+      const data = await client.reviews.getForUser(userId);
       setReviews(data);
     } catch (e) {
       console.error('Failed to load reviews', e);

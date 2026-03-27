@@ -5,3 +5,6 @@ export * from './Toggle';
 export * from './ConfirmDialog';
 export * from './SegmentedControl';
 export * from './PredictionInput';
+export * from './MapMarker';
+export * from './MapSearchBar';
+export * from './LocationPicker';

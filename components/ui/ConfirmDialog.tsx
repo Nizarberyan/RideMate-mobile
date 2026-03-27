@@ -125,6 +125,8 @@ export function ConfirmDialog({ visible, title, message, icon, actions, onDismis
                         color: isDark ? theme.primary : '#fff',
                       },
                     ]}
+                    numberOfLines={1}
+                    ellipsizeMode="tail"
                   >
                     {action.label}
                   </Text>
@@ -179,7 +181,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 22,
     fontWeight: '900',
-    letterSpacing: -0.5,
+    letterSpacing: 0,
   },
   message: {
     fontSize: 15,

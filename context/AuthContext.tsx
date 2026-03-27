@@ -1,7 +1,8 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import * as SecureStore from 'expo-secure-store';
+import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
+import { Storage } from '../src/utils/Storage';
 import { createClient, User, AuthResponse } from '@/src/api/client';
 import { useRouter, useSegments } from 'expo-router';
+import { registerForPushNotificationsAsync } from '../src/utils/notifications';
 
 import { Platform } from 'react-native';
 
@@ -10,7 +11,7 @@ const API_URL = process.env.EXPO_PUBLIC_API_URL ||
 
 const client = createClient({
   baseUrl: API_URL,
-  getToken: () => SecureStore.getItemAsync('token'),
+  getToken: () => Storage.getItemAsync('token'),
 });
 
 type AuthContextType = {
@@ -23,42 +24,45 @@ type AuthContextType = {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+import i18n from 'i18next';
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const segments = useSegments();
   const router = useRouter();
 
-  useEffect(() => {
-    checkAuth();
-
-    // Set up refresh interval (every 45 minutes)
-    const interval = setInterval(() => {
-      refreshAuth();
-    }, 1000 * 60 * 45);
-
-    return () => clearInterval(interval);
+  // Helper to sync i18n with user language
+  const syncLanguage = useCallback((language?: string | null) => {
+    if (language && i18n.language !== language) {
+      i18n.changeLanguage(language);
+    }
   }, []);
 
   useEffect(() => {
-    if (isLoading) return;
-
-    const inAuthGroup = segments[0] === '(auth)';
-
-    if (!user && !inAuthGroup) {
-      router.replace('/(auth)/login');
-    } else if (user && inAuthGroup) {
-      router.replace('/(tabs)');
+    if (user?.language) {
+      syncLanguage(user.language);
     }
-  }, [user, segments, isLoading]);
+  }, [user?.language, syncLanguage]);
 
-  const refreshAuth = async () => {
+  const signOut = useCallback(async () => {
     try {
-      const refreshToken = await SecureStore.getItemAsync('refresh_token');
+      await client.auth.logout();
+    } catch (e) {
+      console.error("Logout error", e);
+    }
+    await Storage.deleteItemAsync('token');
+    await Storage.deleteItemAsync('refresh_token');
+    setUser(null);
+  }, []);
+
+  const refreshAuth = useCallback(async () => {
+    try {
+      const refreshToken = await Storage.getItemAsync('refresh_token');
       if (refreshToken) {
         const response = await client.auth.refresh(refreshToken);
-        await SecureStore.setItemAsync('token', response.access_token);
-        await SecureStore.setItemAsync('refresh_token', response.refresh_token);
+        await Storage.setItemAsync('token', response.access_token);
+        await Storage.setItemAsync('refresh_token', response.refresh_token);
         return true;
       }
     } catch (e) {
@@ -67,11 +71,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       signOut();
     }
     return false;
-  };
+  }, [signOut]);
 
-  const checkAuth = async () => {
+  const checkAuth = useCallback(async () => {
     try {
-      const token = await SecureStore.getItemAsync('token');
+      const token = await Storage.getItemAsync('token');
       if (token) {
         try {
           const userData = await client.auth.getProfile();
@@ -90,24 +94,48 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [refreshAuth]);
 
-  const signIn = async (authData: AuthResponse) => {
-    await SecureStore.setItemAsync('token', authData.access_token);
-    await SecureStore.setItemAsync('refresh_token', authData.refresh_token);
-    setUser(authData.user);
-  };
+  useEffect(() => {
+    checkAuth();
 
-  const signOut = async () => {
-    try {
-      await client.auth.logout();
-    } catch (e) {
-      console.error("Logout error", e);
+    // Set up refresh interval (every 45 minutes)
+    const interval = setInterval(() => {
+      refreshAuth();
+    }, 1000 * 60 * 45);
+
+    return () => clearInterval(interval);
+  }, [checkAuth, refreshAuth]);
+
+  useEffect(() => {
+    if (user && !user.pushToken) {
+      registerForPushNotificationsAsync().then(token => {
+        if (token) {
+          client.auth.updateProfile({ pushToken: token })
+            .then(updated => setUser(updated))
+            .catch(err => console.error("Failed to update push token", err));
+        }
+      });
     }
-    await SecureStore.deleteItemAsync('token');
-    await SecureStore.deleteItemAsync('refresh_token');
-    setUser(null);
-  };
+  }, [user, client]);
+
+  useEffect(() => {
+    if (isLoading) return;
+
+    const inAuthGroup = segments[0] === '(auth)';
+
+    if (!user && !inAuthGroup) {
+      router.replace('/(auth)/login');
+    } else if (user && inAuthGroup) {
+      router.replace('/(tabs)');
+    }
+  }, [user, segments, isLoading, router]);
+
+  const signIn = useCallback(async (authData: AuthResponse) => {
+    await Storage.setItemAsync('token', authData.access_token);
+    await Storage.setItemAsync('refresh_token', authData.refresh_token);
+    setUser(authData.user);
+  }, []);
 
   return (
     <AuthContext.Provider value={{ user, signIn, signOut, isLoading, client }}>

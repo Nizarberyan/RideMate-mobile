@@ -9,7 +9,7 @@ import {
   TextInput
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import * as SecureStore from 'expo-secure-store';
+import { Storage } from './src/utils/Storage';
 import { createClient, Ride, User } from '@/src/api/client';
 import { Car, MapPin, Leaf, LogOut, User as UserIcon } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -20,7 +20,7 @@ const API_URL = process.env.EXPO_PUBLIC_API_URL;
 
 const client = createClient({
   baseUrl: API_URL,
-  getToken: () => SecureStore.getItemAsync('token'),
+  getToken: () => Storage.getItemAsync('token'),
 });
 
 export default function App() {
@@ -38,7 +38,7 @@ export default function App() {
 
   const checkAuth = async () => {
     try {
-      const token = await SecureStore.getItemAsync('token');
+      const token = await Storage.getItemAsync('token');
       if (token) {
         const userData = await client.auth.getProfile();
         setUser(userData);
@@ -73,7 +73,7 @@ export default function App() {
       const data = await response.json();
 
       if (response.ok && data.access_token) {
-        await SecureStore.setItemAsync('token', data.access_token);
+        await Storage.setItemAsync('token', data.access_token);
         setUser(data.user);
         loadDashboardData();
       } else {
@@ -88,7 +88,7 @@ export default function App() {
   };
 
   const handleLogout = async () => {
-    await SecureStore.deleteItemAsync('token');
+    await Storage.deleteItemAsync('token');
     setUser(null);
     setRides([]);
   };

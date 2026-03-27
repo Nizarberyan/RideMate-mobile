@@ -27,15 +27,16 @@ import {
   UserCircle2,
   AlertCircle,
 } from 'lucide-react-native';
-import { Ride, decodePolyline } from '@/src/api/client';
+import { Ride, decodePolyline } from '../../src/api/client';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { Button, Card, ConfirmDialog } from '../../components/ui';
-import Animated, { FadeInDown, FadeInUp, FadeInRight, FadeInLeft } from 'react-native-reanimated';
-import { GoogleMaps, AppleMaps } from 'expo-maps';
+import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
+const { GoogleMaps, AppleMaps } = Platform.OS !== 'web' ? require('expo-maps') : { GoogleMaps: { View: View }, AppleMaps: { View: View } };
 const MapView = Platform.OS === 'ios' ? AppleMaps.View : GoogleMaps.View;
 import { Platform } from 'react-native';
 import { useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 
 const { width, height } = Dimensions.get('window');
 
@@ -45,6 +46,7 @@ export default function RideDetails() {
   const { client, user } = useAuth();
   const { theme, isDark } = useTheme();
   const insets = useSafeAreaInsets();
+  const { t } = useTranslation();
 
   const [ride, setRide] = useState<Ride | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -52,6 +54,14 @@ export default function RideDetails() {
   const [routePolyline, setRoutePolyline] = useState<{latitude: number; longitude: number}[] | null>(null);
   const [isScrollEnabled, setIsScrollEnabled] = useState(true);
   const mapRef = useRef<any>(null);
+  const isMounted = useRef(true);
+
+  useEffect(() => {
+    isMounted.current = true;
+    return () => {
+      isMounted.current = false;
+    };
+  }, []);
 
   type DialogConfig = {
     visible: boolean;
@@ -78,23 +88,21 @@ export default function RideDetails() {
     } catch (e: any) {
       setDialog({
         visible: true,
-        title: 'Error',
-        message: e.message || "Failed to load ride details",
-        actions: [{ label: 'OK', onPress: () => { dismissDialog(); router.back(); }, style: 'cancel' }],
+        title: t('common.error'),
+        message: e.message || t('ride.dialogs.error'),
+        actions: [{ label: t('common.ok'), onPress: () => { dismissDialog(); router.back(); }, style: 'cancel' }],
       });
     } finally {
       setIsLoading(false);
     }
-  }, [id, client, router]);
+  }, [id, client, router, t]);
 
   const safelyMoveCamera = async (coords: { latitude: number, longitude: number }, zoom = 15) => {
     try {
-      if (mapRef.current) {
+      if (mapRef.current && isMounted.current) {
         await mapRef.current.setCameraPosition({ coordinates: coords, zoom });
       }
-    } catch (err) {
-      // Silently handle animation cancellation during unmount
-    }
+    } catch (err) {}
   };
 
   useEffect(() => {
@@ -119,21 +127,21 @@ export default function RideDetails() {
     if (ride.driverId === user?.id) {
       setDialog({
         visible: true,
-        title: 'Notice',
-        message: 'You cannot book your own ride.',
-        actions: [{ label: 'OK', onPress: dismissDialog, style: 'cancel' }],
+        title: t('common.notice'),
+        message: t('ride.dialogs.ownRide'),
+        actions: [{ label: t('common.ok'), onPress: dismissDialog, style: 'cancel' }],
       });
       return;
     }
 
     setDialog({
       visible: true,
-      title: 'Confirm Booking',
-      message: `Book 1 seat from ${ride.startLocation} to ${ride.endLocation}?`,
+      title: t('ride.dialogs.confirmBooking.title'),
+      message: t('ride.dialogs.confirmBooking.message', { from: ride.startLocation, to: ride.endLocation }),
       actions: [
-        { label: 'Cancel', onPress: dismissDialog, style: 'cancel' },
+        { label: t('common.cancel'), onPress: dismissDialog, style: 'cancel' },
         {
-          label: 'Book Ride',
+          label: t('ride.actions.book'),
           style: 'default',
           onPress: async () => {
             dismissDialog();
@@ -143,17 +151,17 @@ export default function RideDetails() {
               setBookingStatus('success');
               setDialog({
                 visible: true,
-                title: '🎉 Ride Booked!',
-                message: 'Your seat has been reserved. Have a great trip!',
-                actions: [{ label: 'Back to Home', onPress: () => { dismissDialog(); router.push('/(tabs)'); }, style: 'default' }],
+                title: t('ride.dialogs.booked.title'),
+                message: t('ride.dialogs.booked.message'),
+                actions: [{ label: t('ride.dialogs.booked.button'), onPress: () => { dismissDialog(); router.push('/(tabs)'); }, style: 'default' }],
               });
             } catch (e: any) {
               setBookingStatus('error');
               setDialog({
                 visible: true,
-                title: 'Booking Failed',
+                title: t('common.error'),
                 message: (e as Error).message || 'Something went wrong.',
-                actions: [{ label: 'OK', onPress: dismissDialog, style: 'cancel' }],
+                actions: [{ label: t('common.ok'), onPress: dismissDialog, style: 'cancel' }],
               });
             } finally {
               setBookingStatus('idle');
@@ -168,12 +176,12 @@ export default function RideDetails() {
     if (!myBooking) return;
     setDialog({
       visible: true,
-      title: 'Cancel Booking',
-      message: 'Are you sure you want to cancel your booking for this ride?',
+      title: t('ride.dialogs.cancelBooking.title'),
+      message: t('ride.dialogs.cancelBooking.message'),
       actions: [
-        { label: 'Keep Booking', onPress: dismissDialog, style: 'cancel' },
+        { label: t('ride.dialogs.cancelBooking.keep'), onPress: dismissDialog, style: 'cancel' },
         {
-          label: 'Yes, Cancel',
+          label: t('ride.dialogs.cancelBooking.yes'),
           style: 'destructive',
           onPress: async () => {
             dismissDialog();
@@ -187,9 +195,9 @@ export default function RideDetails() {
               setBookingStatus('error');
               setDialog({
                 visible: true,
-                title: 'Error',
+                title: t('common.error'),
                 message: (e as Error).message || 'Failed to cancel booking.',
-                actions: [{ label: 'OK', onPress: dismissDialog, style: 'cancel' }],
+                actions: [{ label: t('common.ok'), onPress: dismissDialog, style: 'cancel' }],
               });
             } finally {
               setBookingStatus('idle');
@@ -203,12 +211,12 @@ export default function RideDetails() {
   const handleCancelRide = () => {
     setDialog({
       visible: true,
-      title: 'Cancel Ride',
-      message: 'Are you sure you want to cancel this ride? All passengers will have their bookings cancelled too.',
+      title: t('ride.dialogs.cancelRide.title'),
+      message: t('ride.dialogs.cancelRide.message'),
       actions: [
-        { label: 'Keep Ride', onPress: dismissDialog, style: 'cancel' },
+        { label: t('ride.dialogs.cancelRide.keep'), onPress: dismissDialog, style: 'cancel' },
         {
-          label: 'Yes, Cancel Ride',
+          label: t('ride.dialogs.cancelRide.yes'),
           style: 'destructive',
           onPress: async () => {
             dismissDialog();
@@ -220,9 +228,42 @@ export default function RideDetails() {
               setBookingStatus('error');
               setDialog({
                 visible: true,
-                title: 'Error',
+                title: t('common.error'),
                 message: (e as Error).message || 'Failed to cancel ride.',
-                actions: [{ label: 'OK', onPress: dismissDialog, style: 'cancel' }],
+                actions: [{ label: t('common.ok'), onPress: dismissDialog, style: 'cancel' }],
+              });
+            } finally {
+              setBookingStatus('idle');
+            }
+          },
+        },
+      ],
+    });
+  };
+
+  const handleCompleteRide = () => {
+    setDialog({
+      visible: true,
+      title: t('ride.dialogs.completeRide.title'),
+      message: t('ride.dialogs.completeRide.message'),
+      actions: [
+        { label: t('common.cancel'), onPress: dismissDialog, style: 'cancel' },
+        {
+          label: t('ride.actions.complete'),
+          style: 'default',
+          onPress: async () => {
+            dismissDialog();
+            setBookingStatus('loading');
+            try {
+              await client.rides.completeRide(id);
+              loadRideDetails();
+            } catch (e: any) {
+              setBookingStatus('error');
+              setDialog({
+                visible: true,
+                title: t('common.error'),
+                message: (e as Error).message || 'Failed to complete ride.',
+                actions: [{ label: t('common.ok'), onPress: dismissDialog, style: 'cancel' }],
               });
             } finally {
               setBookingStatus('idle');
@@ -268,7 +309,7 @@ export default function RideDetails() {
         >
           <ArrowLeft size={24} color={theme.text} />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: theme.text }]}>Ride Details</Text>
+        <Text style={[styles.headerTitle, { color: theme.text }]}>{t('ride.details.title')}</Text>
         <View style={{ width: 44 }} />
       </View>
 
@@ -285,7 +326,6 @@ export default function RideDetails() {
             onTouchStart={() => setIsScrollEnabled(false)}
             onTouchEnd={() => setIsScrollEnabled(true)}
             onTouchCancel={() => setIsScrollEnabled(true)}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           >
             <MapView
               ref={mapRef}
@@ -298,47 +338,19 @@ export default function RideDetails() {
                   const latDelta = Math.abs(ride.startLat! - ride.endLat!);
                   const lngDelta = Math.abs(ride.startLng! - ride.endLng!);
                   const maxDelta = Math.max(latDelta, lngDelta, 0.005);
-                  // Approximate zoom: zoom = log2(360 / delta) - 1 with padding
                   const zoom = Math.max(5, Math.min(15, Math.log2(360 / maxDelta) - 1.5));
                   await mapRef.current.setCameraPosition({
                     coordinates: { latitude: centerLat, longitude: centerLng },
                     zoom,
                   });
-                } catch {
-                  // Silently handle animation cancellation during unmount
-                }
+                } catch {}
               }}
-              uiSettings={{
-                myLocationButtonEnabled: false,
-              }}
+              uiSettings={{ myLocationButtonEnabled: false }}
               markers={[
-                {
-                  coordinates: { latitude: ride!.startLat!, longitude: ride!.startLng! },
-                  title: "Start",
-                  color: theme.primary,
-                },
-                {
-                  coordinates: { latitude: ride!.endLat!, longitude: ride!.endLng! },
-                  title: "End",
-                  color: "#ef4444",
-                }
+                { coordinates: { latitude: ride!.startLat!, longitude: ride!.startLng! }, title: "Start", color: theme.primary },
+                { coordinates: { latitude: ride!.endLat!, longitude: ride!.endLng! }, title: "End", color: "#ef4444" }
               ]}
-              polylines={routePolyline ? [
-                {
-                  coordinates: routePolyline,
-                  color: theme.primary,
-                  width: 3,
-                }
-              ] : [
-                {
-                  coordinates: [
-                    { latitude: ride!.startLat!, longitude: ride!.startLng! },
-                    { latitude: ride!.endLat!, longitude: ride!.endLng! }
-                  ],
-                  color: theme.primary,
-                  width: 3,
-                }
-              ]}
+              polylines={routePolyline ? [{ coordinates: routePolyline, color: theme.primary, width: 3 }] : [{ coordinates: [{ latitude: ride!.startLat!, longitude: ride!.startLng! }, { latitude: ride!.endLat!, longitude: ride!.endLng! }], color: theme.primary, width: 3 }]}
             />
           </Animated.View>
         )}
@@ -354,11 +366,11 @@ export default function RideDetails() {
               </View>
               <View style={styles.locations}>
                 <View style={styles.locationItem}>
-                  <Text style={[styles.locationLabel, { color: theme.textMuted }]}>PICKUP</Text>
+                  <Text style={[styles.locationLabel, { color: theme.textMuted }]}>{t('ride.details.pickup')}</Text>
                   <Text style={[styles.locationName, { color: theme.text }]}>{ride.startLocation}</Text>
                 </View>
                 <View style={[styles.locationItem, { marginTop: 32 }]}>
-                  <Text style={[styles.locationLabel, { color: theme.textMuted }]}>DROPOFF</Text>
+                  <Text style={[styles.locationLabel, { color: theme.textMuted }]}>{t('ride.details.dropoff')}</Text>
                   <Text style={[styles.locationName, { color: theme.text }]}>{ride.endLocation}</Text>
                 </View>
               </View>
@@ -388,36 +400,40 @@ export default function RideDetails() {
           entering={FadeInDown.delay(200).duration(600).springify()}
           style={[styles.sectionTitle, { color: theme.text }]}
         >
-          Your Driver
+          {t('ride.details.driverTitle')}
         </Animated.Text>
         
         <Animated.View entering={FadeInDown.delay(300).duration(600).springify()}>
           <Card style={styles.driverCard} contentStyle={{ padding: 20 }} onPress={() => navigateToUser(ride.driverId)}>
             <View style={styles.driverHeader}>
-              <View style={[styles.driverAvatar, { backgroundColor: theme.primary }]}>
+              <TouchableOpacity 
+                style={[styles.driverAvatar, { backgroundColor: theme.primary }]}
+                onPress={() => navigateToUser(ride.driverId)}
+              >
                 {ride.driver?.photo ? (
                   <Image source={{ uri: ride.driver.photo }} style={styles.avatarImage} />
                 ) : (
                   <Text style={styles.avatarText}>{ride.driver?.name?.charAt(0) || 'U'}</Text>
                 )}
-              </View>
+              </TouchableOpacity>
               <View style={styles.driverMainInfo}>
                 <View style={styles.nameRow}>
-                  <Text style={[styles.driverName, { color: theme.text }]}>{ride.driver?.name}</Text>
+                  <Text style={[styles.driverName, { color: theme.text }]} numberOfLines={1}>
+                    {ride.driver?.name}
+                  </Text>
                   <ShieldCheck size={16} color={theme.primary} style={{ marginLeft: 6 }} />
-                  <View style={styles.driverRating}>
-                    <Star size={14} color="#FFD700" fill="#FFD700" />
-                    <Text style={[styles.driverRatingText, { color: theme.text }]}>
-                      {ride.driver?.rating ? ride.driver.rating.toFixed(1) : "N/A"}
-                    </Text>
-                  </View>
                 </View>
-                <View style={styles.ratingRow}>
-                  <Leaf size={14} color="#10b981" />
-                  <Text style={[styles.carbonText, { color: '#10b981' }]}>{ride.driver?.carbonSavedKg}kg CO2 saved</Text>
+                <View style={[styles.driverRating, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8, alignSelf: 'flex-start', marginTop: 4 }]}>
+                  <Star size={12} color="#f59e0b" fill="#f59e0b" />
+                  <Text style={[styles.driverRatingText, { color: theme.text }]}>
+                    {ride.driver?.rating ? ride.driver.rating.toFixed(1) : "N/A"}
+                  </Text>
                 </View>
               </View>
-              <TouchableOpacity style={[styles.contactButton, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)' }]}>
+              <TouchableOpacity 
+                style={[styles.contactButton, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)' }]}
+                onPress={() => navigateToUser(ride.driverId)}
+              >
                 <ChevronRight size={20} color={theme.textMuted} />
               </TouchableOpacity>
             </View>
@@ -439,7 +455,7 @@ export default function RideDetails() {
                   {ride.driver?.vehicleColor} {ride.driver?.vehicleModel}
                 </Text>
                 <Text style={[styles.vehiclePlate, { color: theme.textMuted }]}>
-                  {ride.driver?.vehiclePlate || "Plate Not Provided"}
+                  {ride.driver?.vehiclePlate || t('ride.details.noPlate')}
                 </Text>
               </View>
             </View>
@@ -447,18 +463,18 @@ export default function RideDetails() {
             {/* Booking Requirements */}
             {(ride.requirePhoto || ride.minRating) && (
               <View style={[styles.requirementsBox, { backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)', borderColor: theme.border }]}>
-                <Text style={[styles.requirementsTitle, { color: theme.text }]}>Booking Requirements</Text>
+                <Text style={[styles.requirementsTitle, { color: theme.text }]}>{t('ride.details.requirements')}</Text>
                 <View style={styles.requirementBadges}>
                   {ride.requirePhoto && (
                     <View style={[styles.reqBadge, { backgroundColor: user?.photo ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)' }]}>
                       <UserCircle2 size={14} color={user?.photo ? '#10b981' : '#ef4444'} />
-                      <Text style={[styles.reqBadgeText, { color: user?.photo ? '#10b981' : '#ef4444' }]}>Verified Photo</Text>
+                      <Text style={[styles.reqBadgeText, { color: user?.photo ? '#10b981' : '#ef4444' }]}>{t('ride.details.verifiedPhoto')}</Text>
                     </View>
                   )}
                   {ride.minRating && (
                     <View style={[styles.reqBadge, { backgroundColor: (user?.rating || 0) >= ride.minRating ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)' }]}>
                       <Star size={14} color={(user?.rating || 0) >= ride.minRating ? '#10b981' : '#ef4444'} />
-                      <Text style={[styles.reqBadgeText, { color: (user?.rating || 0) >= ride.minRating ? '#10b981' : '#ef4444' }]}>Rating {ride.minRating}+</Text>
+                      <Text style={[styles.reqBadgeText, { color: (user?.rating || 0) >= ride.minRating ? '#10b981' : '#ef4444' }]}>{t('ride.details.minRating', { rating: ride.minRating })}</Text>
                     </View>
                   )}
                 </View>
@@ -467,7 +483,7 @@ export default function RideDetails() {
                 ) && (
                   <View style={styles.warningBox}>
                     <AlertCircle size={14} color="#ef4444" />
-                    <Text style={styles.warningText}>You don't meet the driver's requirements.</Text>
+                    <Text style={styles.warningText}>{t('ride.details.notMet')}</Text>
                   </View>
                 )}
               </View>
@@ -480,7 +496,7 @@ export default function RideDetails() {
           entering={FadeInDown.delay(400).duration(600).springify()}
           style={[styles.sectionTitle, { color: theme.text }]}
         >
-          Ride Information
+          {t('ride.details.rideInfo')}
         </Animated.Text>
 
         <Animated.View entering={FadeInDown.delay(500).duration(600).springify()}>
@@ -488,22 +504,29 @@ export default function RideDetails() {
             <View style={[styles.detailItem, { backgroundColor: theme.surface }]}>
               <Users size={20} color={theme.primary} />
               <View style={{ marginLeft: 12 }}>
-                <Text style={[styles.detailLabel, { color: theme.textMuted }]}>Seats</Text>
-                <Text style={[styles.detailValue, { color: theme.text }]}>{ride.availableSeats} Available</Text>
+                <Text style={[styles.detailLabel, { color: theme.textMuted }]}>{t('ride.details.seats')}</Text>
+                <Text style={[styles.detailValue, { color: theme.text }]}>{t('ride.details.seatsAvailable', { count: ride.availableSeats })}</Text>
+              </View>
+            </View>
+            <View style={[styles.detailItem, { backgroundColor: theme.surface }]}>
+              <Leaf size={20} color="#10b981" />
+              <View style={{ marginLeft: 12 }}>
+                <Text style={[styles.detailLabel, { color: theme.textMuted }]}>{t('ride.details.co2')}</Text>
+                <Text style={[styles.detailValue, { color: theme.text }]}>{ride.distanceKm ? (ride.distanceKm * 0.17).toFixed(1) : '0.0'} kg</Text>
               </View>
             </View>
             <View style={[styles.detailItem, { backgroundColor: theme.surface }]}>
               <Info size={20} color={theme.primary} />
               <View style={{ marginLeft: 12 }}>
-                <Text style={[styles.detailLabel, { color: theme.textMuted }]}>Status</Text>
-                <Text style={[styles.detailValue, { color: theme.text }]}>{ride.status.toUpperCase()}</Text>
+                <Text style={[styles.detailLabel, { color: theme.textMuted }]}>{t('ride.details.status')}</Text>
+                <Text style={[styles.detailValue, { color: theme.text }]}>{t(`ride.status.${ride.status.toLowerCase()}`).toUpperCase()}</Text>
               </View>
             </View>
           </View>
 
           {ride.description && (
             <Card style={styles.descriptionCard} contentStyle={{ padding: 20 }}>
-              <Text style={[styles.descriptionTitle, { color: theme.text }]}>Driver's Note</Text>
+              <Text style={[styles.descriptionTitle, { color: theme.text }]}>{t('ride.details.driverNote')}</Text>
               <Text style={[styles.descriptionText, { color: theme.textMuted }]}>
                 {ride.description}
               </Text>
@@ -514,7 +537,7 @@ export default function RideDetails() {
           {ride.bookings && ride.bookings.length > 0 && (
             <View style={{ marginTop: 24 }}>
               <Text style={[styles.sectionTitle, { color: theme.text }]}>
-                Passengers ({ride.bookings.length})
+                {t('ride.details.passengers', { count: ride.bookings.length })}
               </Text>
               <View style={styles.passengersList}>
                 {ride.bookings.map((booking, index) => {
@@ -532,7 +555,6 @@ export default function RideDetails() {
                       entering={FadeInDown.delay(600 + (index * 100)).duration(600).springify()}
                       style={[styles.passengerCard, { backgroundColor: theme.surface }]}
                     >
-                      {/* Passenger info row */}
                       <TouchableOpacity
                         style={styles.passengerInfoRow}
                         onPress={() => navigateToUser(booking.userId)}
@@ -546,18 +568,17 @@ export default function RideDetails() {
                         </View>
                         <View style={{ flex: 1 }}>
                           <Text style={[styles.passengerName, { color: theme.text }]} numberOfLines={1}>
-                            {booking.user?.name || 'Passenger'}
+                            {booking.user?.name || t('ride.passengerCard.unknown')}
                           </Text>
                           <Text style={{ fontSize: 11, fontWeight: '700', color: statusColor, marginTop: 2 }}>
-                            {booking.status}
+                            {t(`ride.status.${booking.status.toLowerCase()}`)}
                           </Text>
                         </View>
                         <Text style={{ fontSize: 13, fontWeight: '700', color: theme.textMuted }}>
-                          {booking.seatsBooked} seat{booking.seatsBooked !== 1 ? 's' : ''}
+                          {t(`ride.passengerCard.seats${booking.seatsBooked > 1 ? '_plural' : ''}`, { count: booking.seatsBooked })}
                         </Text>
                       </TouchableOpacity>
 
-                      {/* Driver action buttons — only for PENDING bookings */}
                       {isOwner && booking.status === 'PENDING' && (
                         <View style={[styles.bookingActions, { borderTopColor: theme.border }]}>
                           <TouchableOpacity
@@ -567,11 +588,11 @@ export default function RideDetails() {
                                 await client.bookings.confirm(booking.id);
                                 loadRideDetails();
                               } catch (e: any) {
-                                setDialog({ visible: true, title: 'Error', message: e.message, actions: [{ label: 'OK', onPress: dismissDialog, style: 'cancel' }] });
+                                setDialog({ visible: true, title: t('common.error'), message: e.message, actions: [{ label: t('common.ok'), onPress: dismissDialog, style: 'cancel' }] });
                               }
                             }}
                           >
-                            <Text style={{ fontSize: 13, fontWeight: '800', color: '#10b981' }}>✓ Confirm</Text>
+                            <Text style={{ fontSize: 13, fontWeight: '800', color: '#10b981' }}>✓ {t('ride.actions.confirm')}</Text>
                           </TouchableOpacity>
                           <TouchableOpacity
                             style={[styles.actionBtn, { backgroundColor: 'rgba(239,68,68,0.08)' }]}
@@ -580,11 +601,32 @@ export default function RideDetails() {
                                 await client.bookings.reject(booking.id);
                                 loadRideDetails();
                               } catch (e: any) {
-                                setDialog({ visible: true, title: 'Error', message: e.message, actions: [{ label: 'OK', onPress: dismissDialog, style: 'cancel' }] });
+                                setDialog({ visible: true, title: t('common.error'), message: e.message, actions: [{ label: t('common.ok'), onPress: dismissDialog, style: 'cancel' }] });
                               }
                             }}
                           >
-                            <Text style={{ fontSize: 13, fontWeight: '800', color: '#ef4444' }}>✕ Reject</Text>
+                            <Text style={{ fontSize: 13, fontWeight: '800', color: '#ef4444' }}>✕ {t('ride.actions.reject')}</Text>
+                          </TouchableOpacity>
+                        </View>
+                      )}
+
+                      {isOwner && booking.status === 'COMPLETED' && !booking.isRated && (
+                        <View style={[styles.bookingActions, { borderTopColor: theme.border }]}>
+                          <TouchableOpacity
+                            style={[styles.actionBtn, { backgroundColor: theme.primary }]}
+                            onPress={() => {
+                              router.push({
+                                pathname: '/rides/review',
+                                params: { 
+                                  bookingId: booking.id, 
+                                  targetId: booking.userId, 
+                                  targetName: booking.user?.name,
+                                  role: 'PASSENGER' 
+                                }
+                              });
+                            }}
+                          >
+                            <Text style={{ fontSize: 13, fontWeight: '800', color: '#151515' }}>{t('ride.actions.review')}</Text>
                           </TouchableOpacity>
                         </View>
                       )}
@@ -603,29 +645,41 @@ export default function RideDetails() {
       <View style={[styles.bottomAction, { paddingBottom: Math.max(insets.bottom, 20), borderTopColor: theme.border, backgroundColor: theme.background }]}>
         <View style={{ flex: 1 }}>
           {isOwner ? (
-            <View style={{ flexDirection: 'row', gap: 12 }}>
-              <View style={{ flex: 1 }}>
+            <View style={{ flexDirection: 'column', gap: 12 }}>
+              {ride.status === 'ACTIVE' && new Date(ride.departureDatetime) <= new Date() && (
                 <Button
-                  label="Edit"
-                  variant="outline"
+                  label={t('ride.actions.complete')}
+                  variant="brand"
                   size="lg"
-                  onPress={() => router.push(`/rides/edit/${id}`)}
-                />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Button
-                  label="Cancel"
-                  variant="danger"
-                  size="lg"
-                  disabled={bookingStatus === "loading" || ride.status === "CANCELLED"}
+                  disabled={bookingStatus === "loading"}
                   isLoading={bookingStatus === "loading"}
-                  onPress={handleCancelRide}
+                  onPress={handleCompleteRide}
                 />
+              )}
+              <View style={{ flexDirection: 'row', gap: 12 }}>
+                <View style={{ flex: 1 }}>
+                  <Button
+                    label={t('ride.actions.edit')}
+                    variant="outline"
+                    size="lg"
+                    onPress={() => router.push(`/rides/edit/${id}`)}
+                  />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Button
+                    label={t('ride.actions.cancelRide')}
+                    variant="danger"
+                    size="lg"
+                    disabled={bookingStatus === "loading" || ride.status === "CANCELLED" || ride.status === "COMPLETED"}
+                    isLoading={bookingStatus === "loading"}
+                    onPress={handleCancelRide}
+                  />
+                </View>
               </View>
             </View>
           ) : hasBooked ? (
             <Button
-              label="Cancel Booking"
+              label={t('ride.actions.cancelBooking')}
               variant="danger"
               size="lg"
               disabled={bookingStatus === "loading"}
@@ -635,9 +689,9 @@ export default function RideDetails() {
           ) : (
             <Button
               label={
-                ride.availableSeats === 0 ? "Fully Booked" :
+                ride.availableSeats === 0 ? t('ride.actions.full') :
                 (ride.requirePhoto && !user?.photo) || (ride.minRating && (user?.rating || 0) < ride.minRating)
-                ? "Locked" : "Book Ride"
+                ? t('ride.actions.locked') : t('ride.actions.book')
               }
               variant={
                 (ride.requirePhoto && !user?.photo) || (ride.minRating && (user?.rating || 0) < ride.minRating)
@@ -669,354 +723,65 @@ export default function RideDetails() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  center: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingBottom: 15,
-  },
-  backButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '900',
-  },
-  scrollContent: {
-    padding: 24,
-  },
-  mapContainer: {
-    height: 200,
-    borderRadius: 32,
-    overflow: 'hidden',
-    marginBottom: 24,
-    borderWidth: 1,
-  },
-  map: {
-    ...StyleSheet.absoluteFillObject,
-  },
-  routeCard: {
-    borderRadius: 32,
-    borderWidth: 0,
-    marginBottom: 32,
-  },
-  routeContainer: {
-    flexDirection: 'row',
-  },
-  timeline: {
-    alignItems: 'center',
-    width: 20,
-    marginRight: 16,
-    paddingVertical: 6,
-  },
-  dot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-  },
-  line: {
-    width: 2,
-    flex: 1,
-    marginVertical: 4,
-  },
-  locations: {
-    flex: 1,
-  },
-  locationItem: {
-    justifyContent: 'center',
-  },
-  locationLabel: {
-    fontSize: 11,
-    fontWeight: '800',
-    letterSpacing: 1,
-    marginBottom: 4,
-  },
-  locationName: {
-    fontSize: 20,
-    fontWeight: '900',
-  },
-  divider: {
-    height: 1,
-    marginVertical: 20,
-    opacity: 0.5,
-  },
-  dateTimeRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  infoBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  infoText: {
-    fontSize: 15,
-    fontWeight: '700',
-  },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: '900',
-    marginBottom: 16,
-    letterSpacing: -0.5,
-  },
-  driverCard: {
-    borderRadius: 32,
-    borderWidth: 0,
-    marginBottom: 32,
-  },
-  driverHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  driverAvatar: {
-    width: 60,
-    height: 60,
-    borderRadius: 22,
-    justifyContent: 'center',
-    alignItems: 'center',
-    overflow: 'hidden',
-  },
-  avatarImage: {
-    width: '100%',
-    height: '100%',
-  },
-  avatarText: {
-    fontSize: 24,
-    fontWeight: '900',
-    color: '#151515',
-  },
-  driverMainInfo: {
-    flex: 1,
-    marginLeft: 16,
-  },
-  nameRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  driverName: {
-    fontSize: 18,
-    fontWeight: '900',
-  },
-  ratingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 4,
-    gap: 4,
-  },
-  carbonText: {
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  contactButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  driverBio: {
-    marginTop: 16,
-    fontSize: 14,
-    fontWeight: '600',
-    fontStyle: 'italic',
-    lineHeight: 20,
-  },
-  vehicleInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 16,
-  },
-  vehicleIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  vehicleName: {
-    fontSize: 15,
-    fontWeight: '800',
-  },
-  vehiclePlate: {
-    fontSize: 12,
-    fontWeight: '600',
-    marginTop: 2,
-  },
-  detailsGrid: {
-    flexDirection: 'row',
-    gap: 12,
-    marginBottom: 12,
-  },
-  detailItem: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
-    borderRadius: 24,
-  },
-  detailLabel: {
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  detailValue: {
-    fontSize: 14,
-    fontWeight: '900',
-    marginTop: 2,
-  },
-  descriptionCard: {
-    borderRadius: 28,
-    borderWidth: 0,
-    marginTop: 4,
-  },
-  descriptionTitle: {
-    fontSize: 15,
-    fontWeight: '900',
-    marginBottom: 8,
-  },
-  descriptionText: {
-    fontSize: 14,
-    fontWeight: '600',
-    lineHeight: 22,
-  },
-  passengersList: {
-    flexDirection: 'column',
-    gap: 10,
-  },
-  passengerCard: {
-    borderRadius: 20,
-    overflow: 'hidden',
-  },
-  passengerInfoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 14,
-    gap: 12,
-  },
-  passengerItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 8,
-    paddingRight: 16,
-    borderRadius: 20,
-    gap: 10,
-  },
-  bookingActions: {
-    flexDirection: 'row',
-    gap: 8,
-    padding: 12,
-    borderTopWidth: 1,
-  },
-  actionBtn: {
-    flex: 1,
-    paddingVertical: 10,
-    borderRadius: 14,
-    alignItems: 'center',
-  },
-  passengerAvatar: {
-    width: 32,
-    height: 32,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-    overflow: 'hidden',
-  },
-  passengerAvatarText: {
-    fontSize: 14,
-    fontWeight: '900',
-    color: '#151515',
-  },
-  passengerName: {
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  bottomAction: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    paddingHorizontal: 24,
-    paddingTop: 20,
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderTopWidth: 1,
-  },
-  priceInfo: {
-    justifyContent: 'center',
-  },
-  priceLabel: {
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  priceValue: {
-    fontSize: 24,
-    fontWeight: '900',
-  },
-  driverRating: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginLeft: 12,
-    backgroundColor: 'rgba(255, 215, 0, 0.1)',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 8,
-    gap: 4,
-  },
-  driverRatingText: {
-    fontSize: 12,
-    fontWeight: '800',
-  },
-  requirementsBox: {
-    marginTop: 20,
-    padding: 16,
-    borderRadius: 20,
-    borderWidth: 1,
-  },
-  requirementsTitle: {
-    fontSize: 13,
-    fontWeight: '800',
-    marginBottom: 12,
-    letterSpacing: 0.5,
-    textTransform: 'uppercase',
-  },
-  requirementBadges: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  reqBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
-    gap: 6,
-  },
-  reqBadgeText: {
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  warningBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 12,
-    gap: 6,
-  },
-  warningText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#ef4444',
-  },
+  container: { flex: 1 },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingBottom: 15 },
+  backButton: { width: 44, height: 44, borderRadius: 14, justifyContent: 'center', alignItems: 'center' },
+  headerTitle: { fontSize: 18, fontWeight: '900' },
+  scrollContent: { padding: 24 },
+  mapContainer: { height: 200, borderRadius: 32, overflow: 'hidden', marginBottom: 24, borderWidth: 1 },
+  map: { ...StyleSheet.absoluteFillObject },
+  routeCard: { borderRadius: 32, borderWidth: 0, marginBottom: 32 },
+  routeContainer: { flexDirection: 'row' },
+  timeline: { alignItems: 'center', width: 20, marginRight: 16, paddingVertical: 6 },
+  dot: { width: 12, height: 12, borderRadius: 6 },
+  line: { width: 2, flex: 1, marginVertical: 4 },
+  locations: { flex: 1 },
+  locationItem: { justifyContent: 'center' },
+  locationLabel: { fontSize: 11, fontWeight: '800', letterSpacing: 1, marginBottom: 4 },
+  locationName: { fontSize: 20, fontWeight: '900' },
+  divider: { height: 1, marginVertical: 20, opacity: 0.5 },
+  dateTimeRow: { flexDirection: 'row', justifyContent: 'space-between' },
+  infoBox: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  infoText: { fontSize: 15, fontWeight: '700' },
+  sectionTitle: { fontSize: 20, fontWeight: '900', marginBottom: 16, letterSpacing: -0.5 },
+  driverCard: { borderRadius: 32, borderWidth: 0, marginBottom: 32 },
+  driverHeader: { flexDirection: 'row', alignItems: 'center' },
+  driverAvatar: { width: 60, height: 60, borderRadius: 22, justifyContent: 'center', alignItems: 'center', overflow: 'hidden' },
+  avatarImage: { width: '100%', height: '100%' },
+  avatarText: { fontSize: 24, fontWeight: '900', color: '#151515' },
+  driverMainInfo: { flex: 1, marginLeft: 16, marginRight: 12 },
+  nameRow: { flexDirection: 'row', alignItems: 'center' },
+  driverName: { fontSize: 18, fontWeight: '900' },
+  contactButton: { width: 40, height: 40, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
+  driverBio: { marginTop: 16, fontSize: 14, fontWeight: '600', fontStyle: 'italic', lineHeight: 20 },
+  vehicleInfo: { flexDirection: 'row', alignItems: 'center', gap: 16 },
+  vehicleIcon: { width: 44, height: 44, borderRadius: 14, justifyContent: 'center', alignItems: 'center' },
+  vehicleName: { fontSize: 15, fontWeight: '800' },
+  vehiclePlate: { fontSize: 12, fontWeight: '600', marginTop: 2 },
+  detailsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 12 },
+  detailItem: { flex: 1, minWidth: '45%', flexDirection: 'row', alignItems: 'center', padding: 16, borderRadius: 24 },
+  detailLabel: { fontSize: 11, fontWeight: '700' },
+  detailValue: { fontSize: 14, fontWeight: '900', marginTop: 2 },
+  descriptionCard: { borderRadius: 28, borderWidth: 0, marginTop: 4 },
+  descriptionTitle: { fontSize: 15, fontWeight: '900', marginBottom: 8 },
+  descriptionText: { fontSize: 14, fontWeight: '600', lineHeight: 22 },
+  passengersList: { flexDirection: 'column', gap: 10 },
+  passengerCard: { borderRadius: 20, overflow: 'hidden' },
+  passengerInfoRow: { flexDirection: 'row', alignItems: 'center', padding: 14, gap: 12 },
+  bookingActions: { flexDirection: 'row', gap: 8, padding: 12, borderTopWidth: 1 },
+  actionBtn: { flex: 1, paddingVertical: 10, borderRadius: 14, alignItems: 'center' },
+  passengerAvatar: { width: 32, height: 32, borderRadius: 12, justifyContent: 'center', alignItems: 'center', overflow: 'hidden' },
+  passengerAvatarText: { fontSize: 14, fontWeight: '900', color: '#151515' },
+  passengerName: { fontSize: 13, fontWeight: '700' },
+  bottomAction: { position: 'absolute', bottom: 0, left: 0, right: 0, paddingHorizontal: 24, paddingTop: 20, flexDirection: 'row', alignItems: 'center', borderTopWidth: 1 },
+  driverRating: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  driverRatingText: { fontSize: 13, fontWeight: '800' },
+  requirementsBox: { marginTop: 20, padding: 16, borderRadius: 20, borderWidth: 1 },
+  requirementsTitle: { fontSize: 13, fontWeight: '800', marginBottom: 12, letterSpacing: 0.5, textTransform: 'uppercase' },
+  requirementBadges: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  reqBadge: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12, gap: 6 },
+  reqBadgeText: { fontSize: 12, fontWeight: '700' },
+  warningBox: { flexDirection: 'row', alignItems: 'center', marginTop: 12, gap: 6 },
+  warningText: { fontSize: 12, fontWeight: '600', color: '#ef4444' },
 });

@@ -19,9 +19,11 @@ import {
   Car, 
   Calendar, 
   MapPin,
-  Star
+  Star,
+  MessageSquare,
+  ChevronRight
 } from 'lucide-react-native';
-import { User } from '@/src/api/client';
+import { User } from '../../src/api/client';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { Card } from '../../components/ui';
@@ -37,7 +39,9 @@ export default function UserProfile() {
   const insets = useSafeAreaInsets();
 
   const [user, setUser] = useState<User | null>(null);
+  const [reviews, setReviews] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingReviews, setIsLoadingReviews] = useState(false);
 
   const loadUserProfile = useCallback(async () => {
     if (!id) return;
@@ -45,11 +49,17 @@ export default function UserProfile() {
       // @ts-ignore - newly added method
       const data = await client.users.getOne(id);
       setUser(data);
+      
+      // Load reviews preview
+      setIsLoadingReviews(true);
+      const userReviews = await client.reviews.getForUser(id);
+      setReviews(userReviews);
     } catch (e: any) {
       Alert.alert("Error", e.message || "Failed to load user profile");
       router.back();
     } finally {
       setIsLoading(false);
+      setIsLoadingReviews(false);
     }
   }, [id, client, router]);
 
@@ -118,7 +128,9 @@ export default function UserProfile() {
             </View>
             <View style={[styles.statItem, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)' }]}>
               <Star size={16} color="#f59e0b" />
-              <Text style={[styles.statValue, { color: theme.text }]}>4.9</Text>
+              <Text style={[styles.statValue, { color: theme.text }]}>
+                {user.rating ? user.rating.toFixed(1) : "N/A"}
+              </Text>
               <Text style={[styles.statLabel, { color: theme.textMuted }]}>Rating</Text>
             </View>
           </StatsRow>
@@ -135,6 +147,62 @@ export default function UserProfile() {
             </Card>
           </Animated.View>
         )}
+
+        {/* Reviews Section */}
+        <Animated.View entering={FadeInDown.delay(250).duration(600).springify()}>
+          <View style={styles.sectionHeader}>
+            <Text style={[styles.sectionTitle, { color: theme.text, marginBottom: 0 }]}>Reviews</Text>
+            {reviews.length > 3 && (
+              <TouchableOpacity onPress={() => router.push({ pathname: '/rides/user-reviews', params: { userId: user.id, name: user.name } })}>
+                <View style={styles.seeAllButton}>
+                  <Text style={{ color: theme.primary, fontWeight: '700' }}>See All</Text>
+                  <ChevronRight size={16} color={theme.primary} />
+                </View>
+              </TouchableOpacity>
+            )}
+          </View>
+          
+          <Card style={styles.infoCard} contentStyle={{ padding: 0 }}>
+            {isLoadingReviews ? (
+              <View style={{ padding: 20 }}>
+                <ActivityIndicator color={theme.primary} />
+              </View>
+            ) : reviews.length > 0 ? (
+              <View>
+                {reviews.slice(0, 3).map((review, idx) => (
+                  <View key={review.id} style={[styles.reviewItem, { borderBottomColor: theme.border, borderBottomWidth: idx === Math.min(reviews.length, 3) - 1 ? 0 : 1 }]}>
+                    <View style={styles.reviewHeader}>
+                      <View style={styles.reviewAuthor}>
+                        <Image 
+                          source={review.reviewer.photo ? { uri: review.reviewer.photo } : require('../../assets/icon.png')} 
+                          style={styles.reviewAvatar} 
+                        />
+                        <View>
+                          <Text style={[styles.reviewName, { color: theme.text }]}>{review.reviewer.name}</Text>
+                          <Text style={[styles.reviewDate, { color: theme.textMuted }]}>
+                            {new Date(review.createdAt).toLocaleDateString()}
+                          </Text>
+                        </View>
+                      </View>
+                      <View style={styles.reviewStars}>
+                        <Star size={12} color="#FFD700" fill="#FFD700" />
+                        <Text style={[styles.reviewRatingText, { color: theme.text }]}>{review.rating.toFixed(1)}</Text>
+                      </View>
+                    </View>
+                    {review.comment ? (
+                      <Text style={[styles.reviewComment, { color: theme.text }]}>{review.comment}</Text>
+                    ) : null}
+                  </View>
+                ))}
+              </View>
+            ) : (
+              <View style={styles.emptyReviews}>
+                <MessageSquare size={24} color={theme.textMuted} strokeWidth={1.5} />
+                <Text style={{ color: theme.textMuted, fontStyle: 'italic', marginTop: 8 }}>No reviews yet</Text>
+              </View>
+            )}
+          </Card>
+        </Animated.View>
 
         {/* Vehicle Section */}
         {user.vehicleModel && (
@@ -294,6 +362,67 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     marginBottom: 12,
     marginTop: 8,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
+  seeAllButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  reviewItem: {
+    padding: 16,
+  },
+  reviewHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 8,
+  },
+  reviewAuthor: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  reviewAvatar: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#ccc',
+  },
+  reviewName: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  reviewDate: {
+    fontSize: 11,
+  },
+  reviewStars: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(255, 215, 0, 0.1)',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 8,
+  },
+  reviewRatingText: {
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  reviewComment: {
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: '500',
+  },
+  emptyReviews: {
+    padding: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   infoCard: {
     borderRadius: 28,

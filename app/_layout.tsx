@@ -1,34 +1,27 @@
-if (__DEV__) {
-  require('../ReactotronConfig');
-}
-
-import { Slot } from 'expo-router';
+import React from 'react';
+import { Stack } from 'expo-router';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { StatusBar } from 'expo-status-bar';
+
 import { AuthProvider } from '../context/AuthContext';
 import { ThemeProvider, useTheme } from '../context/ThemeContext';
-import { StatusBar } from 'expo-status-bar';
-import { View } from 'react-native';
+import { useNotifications } from '../src/utils/useNotifications';
 
-import { ThemeProvider as NavThemeProvider, DefaultTheme, DarkTheme } from '@react-navigation/native';
+// Initialize i18n
+import '../src/i18n';
 
 function AppContent() {
-  const { isDark, theme } = useTheme();
-
-  const navTheme = {
-    ...(isDark ? DarkTheme : DefaultTheme),
-    colors: {
-      ...(isDark ? DarkTheme.colors : DefaultTheme.colors),
-      background: theme.background,
-    },
-  };
+  const { isDark } = useTheme();
+  useNotifications();
 
   return (
-    <View style={{ flex: 1, backgroundColor: theme.background }}>
+    <>
       <StatusBar style={isDark ? 'light' : 'dark'} translucent backgroundColor="transparent" />
-      <NavThemeProvider value={navTheme}>
-        <Slot />
-      </NavThemeProvider>
-    </View>
+      <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+      </Stack>
+    </>
   );
 }
 

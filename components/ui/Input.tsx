@@ -45,7 +45,7 @@ export const Input = ({
   onBlur,
   ...props 
 }: InputProps) => {
-  const { theme } = useTheme();
+  const { theme, spacing, typography } = useTheme();
   const focused = useSharedValue(0);
 
   const handleFocus = (e: any) => {
@@ -66,18 +66,18 @@ export const Input = ({
     );
 
     return {
-      borderColor: error ? '#ef4444' : borderColor,
+      borderColor: error ? theme.danger : borderColor,
       borderWidth: 1.5,
       transform: [{ scale: withTiming(focused.value ? 1.01 : 1, { duration: 200 }) }]
     };
   });
 
   return (
-    <View style={[styles.container, containerStyle]}>
+    <View style={[styles.container, { marginBottom: spacing.lg }, containerStyle]}>
       {label && (
         <Text style={[
-          styles.label, 
-          { color: theme.textMuted }, 
+          typography.caption, 
+          { color: theme.textMuted, marginBottom: spacing.sm, marginLeft: spacing.xs }, 
           labelStyle
         ]}>
           {label}
@@ -88,17 +88,20 @@ export const Input = ({
         styles.inputWrapper, 
         { 
           backgroundColor: theme.surface, 
+          borderRadius: 16,
+          paddingHorizontal: spacing.lg,
+          minHeight: 56,
         },
         multiline && styles.textArea,
         animatedWrapperStyle,
-        inputWrapperStyle, // Moved last to allow strict overrides
+        inputWrapperStyle,
       ]}>
-        {leftIcon && <View style={styles.leftIcon}>{leftIcon}</View>}
+        {leftIcon && <View style={[styles.leftIcon, { marginRight: spacing.md }]}>{leftIcon}</View>}
         
         <TextInput
           style={[
-            styles.input, 
-            { color: theme.text }, 
+            typography.bodyBold,
+            { color: theme.text, flex: 1, height: '100%', paddingVertical: spacing.md }, 
             inputStyle
           ]}
           placeholderTextColor={theme.textMuted}
@@ -108,13 +111,13 @@ export const Input = ({
           {...props}
         />
         
-        {rightIcon && <View style={styles.rightIcon}>{rightIcon}</View>}
+        {rightIcon && <View style={[styles.rightIcon, { marginLeft: spacing.md }]}>{rightIcon}</View>}
       </AnimatedView>
       
       {error ? (
-        <Text style={styles.errorText}>{error}</Text>
+        <Text style={[typography.subtextBold, { color: theme.danger, marginTop: spacing.xs, marginLeft: spacing.xs }]}>{error}</Text>
       ) : helperText ? (
-        <Text style={[styles.helperText, { color: theme.textMuted }]}>{helperText}</Text>
+        <Text style={[typography.subtext, { color: theme.textMuted, marginTop: spacing.xs, marginLeft: spacing.xs }]}>{helperText}</Text>
       ) : null}
     </View>
   );

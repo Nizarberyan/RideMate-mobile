@@ -14,6 +14,18 @@ export type User = {
   vehicleModel?: string | null;
   vehicleColor?: string | null;
   vehiclePlate?: string | null;
+  language: string;
+  pushToken?: string | null;
+  createdAt: string;
+};
+
+export type Notification = {
+  id: string;
+  userId: string;
+  title: string;
+  message: string;
+  data?: any;
+  read: boolean;
   createdAt: string;
 };
 
@@ -98,6 +110,8 @@ export interface UpdateUserInput {
   vehicleModel?: string;
   vehicleColor?: string;
   vehiclePlate?: string;
+  language?: string;
+  pushToken?: string;
 }
 
 export interface AuthResponse {
@@ -223,6 +237,12 @@ export const createClient = (options: ClientOptions) => {
     users: {
       getOne: (id: string): Promise<User> => fetchApi(`/users/${id}`),
     },
+    notifications: {
+      getAll: (): Promise<Notification[]> => fetchApi("/notifications"),
+      markAsRead: (id: string): Promise<Notification> => fetchApi(`/notifications/${id}/read`, {
+        method: "POST",
+      }),
+    },
     reviews: {
       create: (data: { bookingId: string; targetId: string; rating: number; comment?: string; role: "DRIVER" | "PASSENGER" }): Promise<Review> => fetchApi("/reviews", {
         method: "POST",
@@ -263,6 +283,9 @@ export const createClient = (options: ClientOptions) => {
         body: JSON.stringify(data),
       }),
       cancelRide: (id: string): Promise<void> => fetchApi(`/rides/${id}/cancel`, {
+        method: "POST",
+      }),
+      completeRide: (id: string): Promise<void> => fetchApi(`/rides/${id}/complete`, {
         method: "POST",
       }),
       delete: (id: string): Promise<void> => fetchApi(`/rides/${id}`, {

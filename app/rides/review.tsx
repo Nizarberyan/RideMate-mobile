@@ -23,13 +23,20 @@ import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { Button, Card } from '../../components/ui';
 import Animated, { FadeInDown, ZoomIn } from 'react-native-reanimated';
+import { useTranslation } from 'react-i18next';
 
 export default function PostReview() {
-  const { bookingId, targetName } = useLocalSearchParams<{ bookingId: string, targetName?: string }>();
+  const { bookingId, targetId, targetName, role } = useLocalSearchParams<{ 
+    bookingId: string, 
+    targetId: string, 
+    targetName?: string, 
+    role: "DRIVER" | "PASSENGER" 
+  }>();
   const router = useRouter();
   const { client } = useAuth();
   const { theme, isDark } = useTheme();
   const insets = useSafeAreaInsets();
+  const { t } = useTranslation();
 
   const [rating, setRating] = useState(0);
   const [comment, setComment] = useState('');
@@ -38,7 +45,12 @@ export default function PostReview() {
 
   const handleSubmit = async () => {
     if (rating === 0) {
-      Alert.alert('Selection Required', 'Please select a star rating.');
+      Alert.alert(t('reviews.error.ratingRequired'), t('reviews.error.ratingMessage'));
+      return;
+    }
+
+    if (!targetId || !role) {
+      Alert.alert(t('reviews.error.missingInfo'), t('reviews.error.missingMessage'));
       return;
     }
 
@@ -46,15 +58,17 @@ export default function PostReview() {
     try {
       await client.reviews.create({
         bookingId,
+        targetId,
         rating,
         comment: comment.trim() || undefined,
+        role: role as "DRIVER" | "PASSENGER",
       });
       setSuccess(true);
       setTimeout(() => {
         router.back();
       }, 2000);
     } catch (e: any) {
-      Alert.alert('Error', e.message || 'Failed to submit review');
+      Alert.alert(t('common.error'), e.message || t('reviews.error.failed'));
     } finally {
       setIsSubmitting(false);
     }
@@ -66,8 +80,8 @@ export default function PostReview() {
         <Stack.Screen options={{ headerShown: false }} />
         <Animated.View entering={ZoomIn} style={styles.successContainer}>
           <CheckCircle2 size={80} color="#10b981" />
-          <Text style={[styles.successTitle, { color: theme.text }]}>Review Shared!</Text>
-          <Text style={[styles.successSub, { color: theme.textMuted }]}>Your feedback helps keep the community safe.</Text>
+          <Text style={[styles.successTitle, { color: theme.text }]}>{t('reviews.success.title')}</Text>
+          <Text style={[styles.successSub, { color: theme.textMuted }]}>{t('reviews.success.subtitle')}</Text>
         </Animated.View>
       </View>
     );
@@ -85,19 +99,19 @@ export default function PostReview() {
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
           <ArrowLeft size={24} color={theme.text} />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: theme.text }]}>Rate your Experience</Text>
+        <Text style={[styles.headerTitle, { color: theme.text }]}>{t('reviews.title')}</Text>
         <View style={{ width: 40 }} />
       </View>
 
       <ScrollView contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 20 }]}>
         <Animated.View entering={FadeInDown.delay(100).duration(600).springify()}>
           <View style={styles.targetSection}>
-            <Text style={[styles.label, { color: theme.textMuted }]}>RATE</Text>
-            <Text style={[styles.targetName, { color: theme.text }]}>{targetName || 'the other person'}</Text>
+            <Text style={[styles.label, { color: theme.textMuted }]}>{t('reviews.rateLabel')}</Text>
+            <Text style={[styles.targetName, { color: theme.text }]}>{targetName || t('ride.passengerCard.unknown')}</Text>
           </View>
 
           <Card style={styles.ratingCard}>
-            <Text style={[styles.instruction, { color: theme.text }]}>How was the ride?</Text>
+            <Text style={[styles.instruction, { color: theme.text }]}>{t('reviews.instruction')}</Text>
             <View style={styles.starsContainer}>
               {[1, 2, 3, 4, 5].map((star) => (
                 <TouchableOpacity 
@@ -115,24 +129,24 @@ export default function PostReview() {
               ))}
             </View>
             <Text style={[styles.ratingLabel, { color: theme.textMuted }]}>
-              {rating === 0 ? 'Select a rating' : (
-                rating === 1 ? 'Poor' :
-                rating === 2 ? 'Fair' :
-                rating === 3 ? 'Good' :
-                rating === 4 ? 'Very Good' : 'Excellent'
+              {rating === 0 ? t('reviews.selectRating') : (
+                rating === 1 ? t('reviews.levels.poor') :
+                rating === 2 ? t('reviews.levels.fair') :
+                rating === 3 ? t('reviews.levels.good') :
+                rating === 4 ? t('reviews.levels.veryGood') : t('reviews.levels.excellent')
               )}
             </Text>
           </Card>
 
           <Card style={styles.commentCard}>
-            <Text style={[styles.label, { color: theme.textMuted, marginBottom: 12 }]}>ADD A COMMENT (OPTIONAL)</Text>
+            <Text style={[styles.label, { color: theme.textMuted, marginBottom: 12 }]}>{t('reviews.commentLabel')}</Text>
             <TextInput
               style={[styles.input, { 
                 color: theme.text, 
                 backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.02)',
                 borderColor: theme.border
               }]}
-              placeholder="Tell us more about your experience..."
+              placeholder={t('reviews.commentPlaceholder')}
               placeholderTextColor={theme.textMuted}
               multiline
               numberOfLines={4}
@@ -144,7 +158,7 @@ export default function PostReview() {
 
           <View style={styles.btnContainer}>
             <Button
-              label={isSubmitting ? "Submitting..." : "Submit Review"}
+              label={isSubmitting ? t('reviews.submitting') : t('reviews.submit')}
               onPress={handleSubmit}
               variant="primary"
               disabled={isSubmitting || rating === 0}
@@ -152,7 +166,7 @@ export default function PostReview() {
             <View style={styles.safetyInfo}>
               <ShieldCheck size={16} color={theme.textMuted} />
               <Text style={[styles.safetyText, { color: theme.textMuted }]}>
-                Reviews are public and visible to other users.
+                {t('reviews.safetyNote')}
               </Text>
             </View>
           </View>

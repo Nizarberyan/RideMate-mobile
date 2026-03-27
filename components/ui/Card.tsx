@@ -42,7 +42,7 @@ export const Card = ({
   headerStyle,
   delay = 0
 }: CardProps) => {
-  const { theme } = useTheme();
+  const { theme, spacing, typography } = useTheme();
   const scale = useSharedValue(1);
 
   const animatedStyle = useAnimatedStyle(() => {
@@ -66,16 +66,16 @@ export const Card = ({
   const innerContent = (
     <>
       {(title || icon) && (
-        <View style={[styles.header, headerStyle]}>
+        <View style={[styles.header, { marginBottom: spacing.lg }, headerStyle]}>
           {icon && <View style={styles.iconContainer}>{icon}</View>}
           <View style={styles.titleContainer}>
             {title && (
-              <Text style={[styles.title, { color: theme.text }, titleStyle]}>
+              <Text style={[typography.h2, { color: theme.text }, titleStyle]}>
                 {title}
               </Text>
             )}
             {subTitle && (
-              <Text style={[styles.subTitle, { color: theme.textMuted }]}>
+              <Text style={[typography.subtext, { color: theme.textMuted, marginTop: spacing.xs }]}>
                 {subTitle}
               </Text>
             )}
@@ -94,6 +94,9 @@ export const Card = ({
       backgroundColor: theme.surface, 
       borderColor: theme.border,
       shadowColor: theme.shadow,
+      padding: spacing.xl,
+      borderRadius: 28, // Refined from 32
+      marginBottom: spacing.lg,
     }, 
     animatedStyle,
     style

@@ -10,8 +10,11 @@ import {
   Platform,
   Alert,
 } from 'react-native';
-import { GoogleMaps, AppleMaps } from 'expo-maps';
 import * as Location from 'expo-location';
+
+// expo-maps does not support web. Using a placeholder for web to prevent "Cannot find native module 'ExpoMaps'"
+const { GoogleMaps, AppleMaps } = Platform.OS !== 'web' ? require('expo-maps') : { GoogleMaps: { View: View }, AppleMaps: { View: View } };
+
 import { MapPin, X, Check, Navigation, Search } from 'lucide-react-native';
 import { useTheme } from '../../context/ThemeContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -31,21 +34,24 @@ interface LocationPickerProps {
   placeholder?: string;
   icon?: React.ReactNode;
   restrictedCity?: string;
+  initialCoords?: { latitude: number; longitude: number } | null;
   style?: StyleProp<ViewStyle>;
 }
 
-export function LocationPicker({ label, value, onLocationSelect, placeholder, icon, restrictedCity, style }: LocationPickerProps) {
+export function LocationPicker({ label, value, onLocationSelect, placeholder, icon, restrictedCity, initialCoords, style }: LocationPickerProps) {
   const { theme, isDark } = useTheme();
   const insets = useSafeAreaInsets();
   const [showMap, setShowMap] = useState(false);
   const [loading, setLoading] = useState(false);
   const [selectedCoords, setSelectedCoords] = useState<{ latitude: number; longitude: number } | null>(null);
   const [tempAddress, setTempAddress] = useState('');
+  
+  // Default to SF only if absolutely no other context is provided
   const [mapRegion, setMapRegion] = useState({
-    latitude: 37.78825,
-    longitude: -122.4324,
-    latitudeDelta: 0.0922,
-    longitudeDelta: 0.0421,
+    latitude: initialCoords?.latitude || 37.78825,
+    longitude: initialCoords?.longitude || -122.4324,
+    latitudeDelta: 0.01,
+    longitudeDelta: 0.01,
   });
   const mapRef = React.useRef<any>(null);
 
@@ -59,34 +65,8 @@ export function LocationPicker({ label, value, onLocationSelect, placeholder, ic
     }
   };
 
-  const handleOpenMap = async () => {
-    // Reset previous selection so the old marker doesn't flash on screen
-    setSelectedCoords(null);
-    setTempAddress('');
-    setShowMap(true);
-    setLoading(true);
+  const fetchAddress = async (coords: { latitude: number; longitude: number }) => {
     try {
-      let { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') {
-        alert('Permission to access location was denied');
-        setLoading(false);
-        return;
-      }
-
-      let location = await Location.getCurrentPositionAsync({});
-      const coords = {
-        latitude: location.coords.latitude,
-        longitude: location.coords.longitude,
-      };
-      setSelectedCoords(coords);
-      setMapRegion({
-        ...coords,
-        latitudeDelta: 0.01,
-        longitudeDelta: 0.01,
-      });
-      await safelyMoveCamera(coords);
-
-      // Reverse geocode initial location
       const reverse = await Location.reverseGeocodeAsync(coords);
       if (reverse.length > 0) {
         let name = reverse[0].name || '';
@@ -98,9 +78,56 @@ export function LocationPicker({ label, value, onLocationSelect, placeholder, ic
         const primary = streetPart || name;
         const addr = [primary, reverse[0].city || reverse[0].subregion].filter(Boolean).join(', ');
         setTempAddress(addr.trim() || 'Selected Location');
+      } else {
+        setTempAddress('Custom Location');
       }
     } catch (e) {
-      console.error(e);
+      setTempAddress('Custom Location');
+    }
+  };
+
+  const handleOpenMap = async () => {
+    setShowMap(true);
+    setLoading(true);
+
+    try {
+      const targetCoords = initialCoords || selectedCoords;
+      if (targetCoords) {
+        setMapRegion({
+          ...targetCoords,
+          latitudeDelta: 0.01,
+          longitudeDelta: 0.01,
+        });
+        setSelectedCoords(targetCoords);
+        await fetchAddress(targetCoords);
+      }
+
+      let { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        if (!targetCoords) {
+          Alert.alert('Permission Denied', 'Permission to access location was denied. Please select manually.');
+        }
+        setLoading(false);
+        return;
+      }
+
+      if (!targetCoords) {
+        let location = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+        const currentCoords = {
+          latitude: location.coords.latitude,
+          longitude: location.coords.longitude,
+        };
+        setSelectedCoords(currentCoords);
+        setMapRegion({
+          ...currentCoords,
+          latitudeDelta: 0.01,
+          longitudeDelta: 0.01,
+        });
+        await safelyMoveCamera(currentCoords);
+        await fetchAddress(currentCoords);
+      }
+    } catch (e) {
+      console.warn("Location fetch failed", e);
     } finally {
       setLoading(false);
     }
@@ -108,12 +135,12 @@ export function LocationPicker({ label, value, onLocationSelect, placeholder, ic
 
   const handleDismiss = () => {
     setShowMap(false);
-    setSelectedCoords(null);
-    setTempAddress('');
   };
 
   const handleConfirm = async () => {
     if (selectedCoords) {
+      const finalAddress = tempAddress || "Selected Location";
+      
       if (restrictedCity) {
         setLoading(true);
         try {
@@ -139,7 +166,7 @@ export function LocationPicker({ label, value, onLocationSelect, placeholder, ic
       }
 
       onLocationSelect({
-        address: tempAddress || value,
+        address: finalAddress,
         latitude: selectedCoords.latitude,
         longitude: selectedCoords.longitude,
       });
@@ -181,20 +208,13 @@ export function LocationPicker({ label, value, onLocationSelect, placeholder, ic
               const coords = selectedCoords ? selectedCoords : { latitude: mapRegion.latitude, longitude: mapRegion.longitude };
               await safelyMoveCamera(coords);
             }}
-            onCameraMove={(event: any) => {
+            onCameraMoveComplete={async (event: any) => {
               const lat = event.nativeEvent?.cameraPosition?.coordinates?.latitude ?? event.coordinates?.latitude;
               const lng = event.nativeEvent?.cameraPosition?.coordinates?.longitude ?? event.coordinates?.longitude;
               if (lat && lng) {
-                setMapRegion({
-                  latitude: lat,
-                  longitude: lng,
-                  latitudeDelta: 0.01,
-                  longitudeDelta: 0.01,
-                });
-                setSelectedCoords({
-                  latitude: lat,
-                  longitude: lng,
-                });
+                const newCoords = { latitude: lat, longitude: lng };
+                setSelectedCoords(newCoords);
+                await fetchAddress(newCoords);
               }
             }}
           />

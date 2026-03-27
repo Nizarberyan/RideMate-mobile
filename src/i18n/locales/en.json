@@ -1,0 +1,357 @@
+{
+  "dashboard": {
+    "welcome": "Welcome back,",
+    "label": "DASHBOARD",
+    "carbonSaved": "{{count}} kg saved",
+    "tabs": {
+      "riding": "Riding",
+      "driving": "Driving"
+    },
+    "empty": {
+      "noRides": "No rides offered yet.",
+      "noBookings": "No upcoming trips booked.",
+      "findRide": "Find a Ride"
+    },
+    "card": {
+      "seatsLeft": "{{count}} seats left",
+      "bookings": "{{count}} Bookings",
+      "seatBooked": "Seat Booked",
+      "seatsBooked": "Seats Booked",
+      "viewRide": "View Ride"
+    }
+  },
+  "common": {
+    "loading": "Loading...",
+    "error": "Error",
+    "ok": "OK",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "save": "Save",
+    "delete": "Delete",
+    "back": "Back",
+    "none": "None",
+    "search": "Search",
+    "edit": "Edit",
+    "notice": "Notice",
+    "done": "Done",
+    "tabs": {
+      "home": "Home",
+      "search": "Search",
+      "bookings": "Bookings",
+      "offer": "Offer",
+      "profile": "Profile"
+    }
+  },
+  "settings": {
+    "title": "Edit Profile",
+    "info": {
+      "title": "Public Information",
+      "subtitle": "Visible to other members",
+      "name": "Full Name",
+      "city": "Home City",
+      "bio": "Bio",
+      "placeholder": {
+        "name": "e.g. John Doe",
+        "city": "e.g. San Francisco",
+        "bio": "Share a bit about yourself..."
+      },
+      "map": {
+        "title": "Confirm Home City",
+        "select": "Tap to select on map"
+      }
+    },
+    "vehicle": {
+      "title": "Vehicle Details",
+      "subtitle": "Required to offer rides",
+      "model": "Vehicle Model",
+      "color": "Color",
+      "plate": "License Plate",
+      "placeholder": {
+        "model": "e.g. Tesla Model 3",
+        "color": "e.g. Silver",
+        "plate": "e.g. ABC-1234"
+      }
+    },
+    "preferences": {
+      "title": "Preferences",
+      "subtitle": "App appearance and behavior",
+      "darkMode": "Dark Mode",
+      "darkModeSubtitle": "Switch between light and dark themes",
+      "language": "Language",
+      "radius": "Intra-City Search Radius (km)"
+    },
+    "actions": {
+      "save": "Save Profile Changes",
+      "signOut": "Sign Out",
+      "dangerZone": "Danger Zone"
+    },
+    "dialogs": {
+      "permission": {
+        "title": "Permission Needed",
+        "message": "We need access to your photo library to set a profile picture."
+      },
+      "success": {
+        "title": "Profile Saved",
+        "message": "Your profile has been updated successfully."
+      }
+    }
+  },
+  "profile": {
+    "activity": {
+      "title": "Activity & History",
+      "subtitle": "View your past bookings and rides",
+      "bookingHistory": "Booking History",
+      "rideHistory": "Ride History"
+    },
+    "info": {
+      "title": "Personal Information",
+      "subtitle": "Details about your profile",
+      "bio": "Bio",
+      "noBio": "No bio yet. Tap settings to add one!",
+      "city": "Home City",
+      "notSet": "Not set",
+      "radius": "Search Radius"
+    },
+    "vehicle": {
+      "title": "Vehicle Details",
+      "subtitle": "Your registered vehicle for rides",
+      "model": "Model",
+      "color": "Color",
+      "plate": "Plate Number"
+    },
+    "reviews": {
+      "title": "Reviews",
+      "subtitle": "What others are saying about you",
+      "seeAll": "See All",
+      "noReviews": "No reviews yet"
+    }
+  },
+  "offer": {
+    "title": "Offer a Ride",
+    "subtitle": "FILL IN THE TRIP DETAILS",
+    "types": {
+      "intra": "Intra-City",
+      "inter": "City-to-City"
+    },
+    "fields": {
+      "departure": "Departure Location",
+      "destination": "Destination",
+      "time": "Departure Time",
+      "seats": "Seats",
+      "notes": "Additional Notes",
+      "placeholders": {
+        "departure": "Tap to select on map",
+        "destination": "Tap to select on map",
+        "time": "Select Date & Time",
+        "notes": "Any rules or pickup details?"
+      }
+    },
+    "safety": {
+      "title": "Trust & Safety",
+      "photoRequired": "Verified Photo Required",
+      "photoSub": "Only people with profile pictures can book",
+      "minRating": "Minimum Rating",
+      "minRatingSub": "Require a minimum star rating to book"
+    },
+    "actions": {
+      "submit": "Post Ride Offer",
+      "confirmTime": "Confirm Time",
+      "confirmDate": "Confirm Selection",
+      "confirmMap": "Confirm {{mode}}"
+    },
+    "warnings": {
+      "noVehicle": {
+        "title": "Vehicle Info Missing",
+        "text": "You need to add your vehicle details in your profile before you can offer a ride to the community.",
+        "button": "Go to Profile"
+      },
+      "outOfBounds": {
+        "title": "Out of Bounds",
+        "text": "Intra-City rides require locations within {{city}}. Switch to City-to-City if you are traveling between cities."
+      }
+    },
+    "dialogs": {
+      "missing": {
+        "title": "Missing Information",
+        "message": "Please fill in all details including departure, destination, date, and seats."
+      },
+      "success": {
+        "title": "Ride Offered!",
+        "message": "Redirecting to your dashboard..."
+      }
+    }
+  },
+  "ride": {
+    "details": {
+      "title": "Ride Details",
+      "pickup": "PICKUP",
+      "dropoff": "DROPOFF",
+      "driverTitle": "Your Driver",
+      "rideInfo": "Ride Information",
+      "seats": "Seats",
+      "seatsAvailable": "{{count}} Available",
+      "co2": "CO2 Saved",
+      "status": "Status",
+      "driverNote": "Driver's Note",
+      "passengers": "Passengers ({{count}})",
+      "noPlate": "Plate Not Provided",
+      "requirements": "Booking Requirements",
+      "verifiedPhoto": "Verified Photo",
+      "minRating": "Rating {{rating}}+",
+      "notMet": "You don't meet the driver's requirements."
+    },
+    "passengerCard": {
+      "unknown": "Passenger",
+      "seats": "{{count}} seat",
+      "seats_plural": "{{count}} seats"
+    },
+    "status": {
+      "active": "Active",
+      "cancelled": "Cancelled",
+      "completed": "Completed",
+      "pending": "Pending",
+      "confirmed": "Confirmed"
+    },
+    "actions": {
+      "book": "Book Ride",
+      "locked": "Locked",
+      "full": "Fully Booked",
+      "cancelBooking": "Cancel Booking",
+      "cancelRide": "Cancel Ride",
+      "complete": "Complete Ride",
+      "edit": "Edit",
+      "confirm": "Confirm",
+      "reject": "Reject",
+      "review": "Review Passenger",
+      "reviewDriver": "Review Driver"
+    },
+    "dialogs": {
+      "ownRide": "You cannot book your own ride.",
+      "confirmBooking": {
+        "title": "Confirm Booking",
+        "message": "Book 1 seat from {{from}} to {{to}}?"
+      },
+      "booked": {
+        "title": "🎉 Ride Booked!",
+        "message": "Your seat has been reserved. Have a great trip!",
+        "button": "Back to Home"
+      },
+      "cancelBooking": {
+        "title": "Cancel Booking",
+        "message": "Are you sure you want to cancel your booking for this ride?",
+        "keep": "Keep Booking",
+        "yes": "Yes, Cancel"
+      },
+      "cancelRide": {
+        "title": "Cancel Ride",
+        "message": "Are you sure you want to cancel this ride? All passengers will have their bookings cancelled too.",
+        "keep": "Keep Ride",
+        "yes": "Yes, Cancel Ride"
+      },
+      "completeRide": {
+        "title": "Complete Ride",
+        "message": "Mark this ride as completed? All confirmed passengers will be marked as completed and can then be reviewed."
+      }
+    }
+  },
+  "bookings": {
+    "title": "My Bookings",
+    "total": "{{count}} trip total",
+    "total_plural": "{{count}} trips total",
+    "empty": {
+      "title": "No bookings yet",
+      "subtitle": "Find a ride and book your first seat!"
+    },
+    "sections": {
+      "upcoming": "Upcoming",
+      "past": "Past",
+      "cancelled": "Cancelled"
+    }
+  },
+  "search": {
+    "title": "Find your next ride",
+    "placeholders": {
+      "fromCity": "From (City)",
+      "toCity": "To (City)",
+      "fromIntra": "From where in your city?",
+      "toIntra": "To where?",
+      "date": "When do you want to leave?"
+    },
+    "results": {
+      "found": "Found {{count}} rides",
+      "inCity": "Rides in {{city}}",
+      "all": "All Rides",
+      "near": "NEAR YOU",
+      "empty": "No rides found. Try a different search."
+    },
+    "card": {
+      "left": "{{count}} left"
+    }
+  },
+  "auth": {
+    "login": {
+      "title": "Welcome to RideMate",
+      "email": "Email Address",
+      "password": "Password",
+      "submit": "Sign In",
+      "noAccount": "Don't have an account?",
+      "signupLink": "Sign up",
+      "error": {
+        "missing": "Please enter both email and password",
+        "failed": "Login Failed"
+      }
+    },
+    "signup": {
+      "title": "Create account",
+      "subtitle": "Join the community. Build. Explore. Ship.",
+      "name": "Full Name",
+      "email": "Email",
+      "password": "Password",
+      "passwordHelper": "Minimum 6 characters",
+      "submit": "Sign Up",
+      "hasAccount": "Already have an account?",
+      "signinLink": "Sign in",
+      "error": {
+        "missing": "Please fill in all fields",
+        "shortPassword": "Password must be at least 6 characters",
+        "failed": "Signup Failed"
+      }
+    }
+  },
+  "notifications": {
+    "title": "Notifications",
+    "empty": {
+      "title": "No notifications yet",
+      "subtitle": "We'll let you know when something important happens."
+    }
+  },
+  "reviews": {
+    "title": "Rate your Experience",
+    "rateLabel": "RATE",
+    "instruction": "How was the ride?",
+    "selectRating": "Select a rating",
+    "commentLabel": "ADD A COMMENT (OPTIONAL)",
+    "commentPlaceholder": "Tell us more about your experience...",
+    "submit": "Submit Review",
+    "submitting": "Submitting...",
+    "safetyNote": "Reviews are public and visible to other users.",
+    "success": {
+      "title": "Review Shared!",
+      "subtitle": "Your feedback helps keep the community safe."
+    },
+    "levels": {
+      "poor": "Poor",
+      "fair": "Fair",
+      "good": "Good",
+      "veryGood": "Very Good",
+      "excellent": "Excellent"
+    },
+    "error": {
+      "ratingRequired": "Selection Required",
+      "ratingMessage": "Please select a star rating.",
+      "missingInfo": "Missing Info",
+      "missingMessage": "Required data for review is missing.",
+      "failed": "Failed to submit review"
+    }
+  }
+}

@@ -16,11 +16,13 @@ import { useTheme } from '../../context/ThemeContext';
 import { Button, Input } from '../../components/ui';
 import { UserPlus } from 'lucide-react-native';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
+import { useTranslation } from 'react-i18next';
 
 export default function Signup() {
   const { signIn, client } = useAuth();
   const { theme } = useTheme();
   const router = useRouter();
+  const { t } = useTranslation();
   const [isLoading, setIsLoading] = useState(false);
   
   const [name, setName] = useState('');
@@ -29,12 +31,12 @@ export default function Signup() {
 
   const handleSignup = async () => {
     if (!name || !email || !password) {
-      Alert.alert("Error", "Please fill in all fields");
+      Alert.alert(t('common.error'), t('auth.signup.error.missing'));
       return;
     }
 
     if (password.length < 6) {
-      Alert.alert("Error", "Password must be at least 6 characters");
+      Alert.alert(t('common.error'), t('auth.signup.error.shortPassword'));
       return;
     }
 
@@ -43,7 +45,7 @@ export default function Signup() {
       const data = await client.auth.register({ name, email, password });
       await signIn(data);
     } catch (e: any) {
-      Alert.alert("Signup Failed", e.message || "Failed to create account");
+      Alert.alert(t('auth.signup.error.failed'), e.message || t('auth.signup.error.failed'));
     } finally {
       setIsLoading(false);
     }
@@ -72,20 +74,20 @@ export default function Signup() {
               entering={FadeInDown.delay(400).duration(800).springify()}
               style={[styles.loginTitle, { color: theme.text }]}
             >
-              Create account
+              {t('auth.signup.title')}
             </Animated.Text>
             
             <Animated.Text 
               entering={FadeInDown.delay(500).duration(800).springify()}
               style={[styles.loginSub, { color: theme.textMuted }]}
             >
-              Join the community. Build. Explore. Ship.
+              {t('auth.signup.subtitle')}
             </Animated.Text>
             
             <View style={styles.form}>
               <Animated.View entering={FadeInDown.delay(600).duration(800).springify()}>
                 <Input
-                  label="Full Name"
+                  label={t('auth.signup.name')}
                   placeholder="John Doe"
                   value={name}
                   onChangeText={setName}
@@ -95,7 +97,7 @@ export default function Signup() {
               
               <Animated.View entering={FadeInDown.delay(700).duration(800).springify()}>
                 <Input
-                  label="Email"
+                  label={t('auth.signup.email')}
                   placeholder="name@example.com"
                   value={email}
                   onChangeText={setEmail}
@@ -107,20 +109,20 @@ export default function Signup() {
               
               <Animated.View entering={FadeInDown.delay(800).duration(800).springify()}>
                 <Input
-                  label="Password"
+                  label={t('auth.signup.password')}
                   placeholder="••••••••"
                   value={password}
                   onChangeText={setPassword}
                   secureTextEntry
                   autoCapitalize="none"
                   autoComplete="password-new"
-                  helperText="Minimum 6 characters"
+                  helperText={t('auth.signup.passwordHelper')}
                 />
               </Animated.View>
               
               <Animated.View entering={FadeInDown.delay(900).duration(800).springify()}>
                 <Button 
-                  label="Sign Up" 
+                  label={t('auth.signup.submit')}
                   variant="black"
                   size="lg"
                   onPress={handleSignup}
@@ -136,7 +138,7 @@ export default function Signup() {
                   style={styles.linkButton}
                 >
                   <Text style={[styles.linkText, { color: theme.textMuted }]}>
-                    Already have an account? <Text style={{ color: theme.text, fontWeight: '900' }}>Sign in</Text>
+                    {t('auth.signup.hasAccount')} <Text style={{ color: theme.text, fontWeight: '900' }}>{t('auth.signup.signinLink')}</Text>
                   </Text>
                 </TouchableOpacity>
               </Animated.View>

@@ -1,7 +1,7 @@
 export default {
   expo: {
-    name: "mobile",
-    slug: "mobile",
+    name: "Ride Mate",
+    slug: "ridemate",
     scheme: "ridemate",
     version: "1.0.0",
     orientation: "portrait",
@@ -25,6 +25,7 @@ export default {
     },
     android: {
       package: "com.ridemate.app",
+      googleServicesFile: "./google-services.json",
       permissions: [
         "ACCESS_COARSE_LOCATION",
         "ACCESS_FINE_LOCATION",
@@ -51,6 +52,7 @@ export default {
       favicon: "./assets/favicon.png",
     },
     plugins: [
+      "expo-notifications",
       "expo-image-picker",
       "@react-native-community/datetimepicker",
       "expo-router",
@@ -61,5 +63,10 @@ export default {
         },
       ],
     ],
+    extra: {
+      eas: {
+        projectId: "5f99a550-8b2c-4173-97b6-3a364562857c"
+      }
+    }
   },
 };

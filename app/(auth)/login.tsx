@@ -15,18 +15,20 @@ import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { Button, Input } from '../../components/ui';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
+import { useTranslation } from 'react-i18next';
 
 export default function Login() {
   const { signIn, client } = useAuth();
   const { theme } = useTheme();
   const router = useRouter();
+  const { t } = useTranslation();
   const [isLoading, setIsLoading] = useState(false);
-  const [email, setEmail] = useState('jane@example.com');
-  const [password, setPassword] = useState('password123');
+  const [email, setEmail] = useState(__DEV__ ? 'test@example.com' : '');
+  const [password, setPassword] = useState(__DEV__ ? 'password123' : '');
 
   const handleLogin = async () => {
     if (!email || !password) {
-      Alert.alert("Error", "Please enter both email and password");
+      Alert.alert(t('common.error'), t('auth.login.error.missing'));
       return;
     }
 
@@ -35,7 +37,7 @@ export default function Login() {
       const data = await client.auth.login({ email, password });
       await signIn(data);
     } catch (e: any) {
-      Alert.alert("Login Failed", e.message || "Invalid credentials");
+      Alert.alert(t('auth.login.error.failed'), e.message || t('auth.login.error.failed'));
     } finally {
       setIsLoading(false);
     }
@@ -64,13 +66,13 @@ export default function Login() {
               entering={FadeInDown.delay(400).duration(800).springify()}
               style={[styles.loginTitle, { color: theme.text }]}
             >
-              Welcome to RideMate
+              {t('auth.login.title')}
             </Animated.Text>
             
             <View style={styles.form}>
               <Animated.View entering={FadeInDown.delay(600).duration(800).springify()}>
                 <Input
-                  placeholder="Email Address"
+                  placeholder={t('auth.login.email')}
                   value={email}
                   onChangeText={setEmail}
                   autoCapitalize="none"
@@ -81,7 +83,7 @@ export default function Login() {
               
               <Animated.View entering={FadeInDown.delay(700).duration(800).springify()}>
                 <Input
-                  placeholder="Password"
+                  placeholder={t('auth.login.password')}
                   value={password}
                   onChangeText={setPassword}
                   secureTextEntry
@@ -92,7 +94,7 @@ export default function Login() {
               
               <Animated.View entering={FadeInDown.delay(800).duration(800).springify()}>
                 <Button 
-                  label="Sign In" 
+                  label={t('auth.login.submit')}
                   variant="black"
                   size="lg"
                   onPress={handleLogin}
@@ -107,7 +109,7 @@ export default function Login() {
                   style={styles.linkButton}
                 >
                   <Text style={[styles.linkText, { color: theme.textMuted }]}>
-                    Don't have an account? <Text style={{ color: theme.text, fontWeight: '900' }}>Sign up</Text>
+                    {t('auth.login.noAccount')} <Text style={{ color: theme.text, fontWeight: '900' }}>{t('auth.login.signupLink')}</Text>
                   </Text>
                 </TouchableOpacity>
               </Animated.View>

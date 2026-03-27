@@ -2,9 +2,11 @@ import { Tabs } from 'expo-router';
 import { View, StyleSheet } from 'react-native';
 import { LayoutDashboard, PlusCircle, User, Search, Ticket } from 'lucide-react-native';
 import { useTheme } from '../../context/ThemeContext';
+import { useTranslation } from 'react-i18next';
 
 export default function TabsLayout() {
   const { theme, isDark } = useTheme();
+  const { t } = useTranslation();
 
   return (
     <Tabs 
@@ -30,8 +32,8 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Home',
-          tabBarLabel: 'Dashboard',
+          title: t('common.tabs.home'),
+          tabBarLabel: t('common.tabs.home'),
           tabBarIcon: ({ color, focused }) => (
             <View style={[styles.tabIconContainer, focused && { backgroundColor: isDark ? 'rgba(190, 242, 100, 0.1)' : 'rgba(190, 242, 100, 0.2)' }]}>
               <LayoutDashboard size={24} color={color} />
@@ -42,8 +44,8 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="search"
         options={{
-          title: 'Find a Ride',
-          tabBarLabel: 'Search',
+          title: t('common.tabs.search'),
+          tabBarLabel: t('common.tabs.search'),
           tabBarIcon: ({ color, focused }) => (
             <View style={[styles.tabIconContainer, focused && { backgroundColor: isDark ? 'rgba(190, 242, 100, 0.1)' : 'rgba(190, 242, 100, 0.2)' }]}>
               <Search size={24} color={color} />
@@ -54,8 +56,8 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="bookings"
         options={{
-          title: 'My Bookings',
-          tabBarLabel: 'Bookings',
+          title: t('common.tabs.bookings'),
+          tabBarLabel: t('common.tabs.bookings'),
           tabBarIcon: ({ color, focused }) => (
             <View style={[styles.tabIconContainer, focused && { backgroundColor: isDark ? 'rgba(190, 242, 100, 0.1)' : 'rgba(190, 242, 100, 0.2)' }]}>
               <Ticket size={24} color={color} />
@@ -66,8 +68,8 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="offer"
         options={{
-          title: 'Offer a Ride',
-          tabBarLabel: 'Offer',
+          title: t('common.tabs.offer'),
+          tabBarLabel: t('common.tabs.offer'),
           tabBarIcon: ({ color, focused }) => (
             <View style={[styles.tabIconContainer, focused && { backgroundColor: isDark ? 'rgba(190, 242, 100, 0.1)' : 'rgba(190, 242, 100, 0.2)' }]}>
               <PlusCircle size={24} color={color} />
@@ -78,8 +80,8 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="profile"
         options={{
-          title: 'My Profile',
-          tabBarLabel: 'Profile',
+          title: t('common.tabs.profile'),
+          tabBarLabel: t('common.tabs.profile'),
           tabBarIcon: ({ color, focused }) => (
             <View style={[styles.tabIconContainer, focused && { backgroundColor: isDark ? 'rgba(190, 242, 100, 0.1)' : 'rgba(190, 242, 100, 0.2)' }]}>
               <User size={24} color={color} />

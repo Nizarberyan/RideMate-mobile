@@ -21,9 +21,10 @@ import { Button, Input, Card, ConfirmDialog, SegmentedControl } from '../../comp
 import { MapSearchBar } from '../../components/ui/MapSearchBar';
 import { MapMarker } from '../../components/ui/MapMarker';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
-import { GoogleMaps, AppleMaps } from 'expo-maps';
+const { GoogleMaps, AppleMaps } = Platform.OS !== 'web' ? require('expo-maps') : { GoogleMaps: { View: View }, AppleMaps: { View: View } };
 const MapView = Platform.OS === 'ios' ? AppleMaps.View : GoogleMaps.View;
 import * as Location from 'expo-location';
+import { useTranslation } from 'react-i18next';
 
 const { width, height } = Dimensions.get('window');
 
@@ -32,6 +33,7 @@ export default function OfferRide() {
   const { theme, isDark } = useTheme();
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { t } = useTranslation();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
 
@@ -67,6 +69,14 @@ export default function OfferRide() {
     longitudeDelta: 0.0421,
   });
   const mapRef = React.useRef<any>(null);
+  const isMounted = React.useRef(true);
+
+  React.useEffect(() => {
+    isMounted.current = true;
+    return () => {
+      isMounted.current = false;
+    };
+  }, []);
 
   const [date, setDate] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -95,7 +105,7 @@ export default function OfferRide() {
 
   const safelyMoveCamera = async (coords: { latitude: number, longitude: number }, zoom = 15) => {
     try {
-      if (mapRef.current) {
+      if (mapRef.current && isMounted.current) {
         await mapRef.current.setCameraPosition({ coordinates: coords, zoom });
       }
     } catch (err) {
@@ -107,6 +117,14 @@ export default function OfferRide() {
     setPickingMode(mode);
     setMapModalVisible(true);
 
+    // Baseline fallback: if user has a city or lat/lng, use it instead of SF
+    if (user?.latitude && user?.longitude) {
+      const lat = user.latitude;
+      const lng = user.longitude;
+      setInitialRegion({ latitude: lat, longitude: lng });
+      setMapRegion(prev => ({...prev, latitude: lat, longitude: lng}));
+      // We'll also try to update with current location below
+    }
 
     try {
       let { status } = await Location.requestForegroundPermissionsAsync();
@@ -164,8 +182,8 @@ export default function OfferRide() {
         
         if (!cityMatched && reverse.length > 0) {
           Alert.alert(
-            "Out of Bounds",
-            `Intra-City rides require locations within ${user.city}. You selected somewhere else. Switch to City-to-City if you are traveling between cities.`
+            t('offer.warnings.outOfBounds.title'),
+            t('offer.warnings.outOfBounds.text', { city: user.city })
           );
           return;
         }
@@ -203,9 +221,9 @@ export default function OfferRide() {
     if (!formData.startLocation || !formData.endLocation || !dateSelected || !formData.availableSeats) {
       setDialog({
         visible: true,
-        title: 'Missing Information',
-        message: 'Please fill in all details including departure, destination, date, and seats.',
-        actions: [{ label: 'OK', onPress: dismissDialog, style: 'default' }],
+        title: t('offer.dialogs.missing.title'),
+        message: t('offer.dialogs.missing.message'),
+        actions: [{ label: t('common.ok'), onPress: dismissDialog, style: 'default' }],
       });
       return;
     }
@@ -246,9 +264,9 @@ export default function OfferRide() {
     } catch (e: any) {
       setDialog({
         visible: true,
-        title: 'Error',
+        title: t('common.error'),
         message: e.message || 'Failed to create ride',
-        actions: [{ label: 'OK', onPress: dismissDialog, style: 'cancel' }],
+        actions: [{ label: t('common.ok'), onPress: dismissDialog, style: 'cancel' }],
       });
     } finally {
       setIsSubmitting(false);
@@ -262,10 +280,10 @@ export default function OfferRide() {
           <CheckCircle2 size={80} color={theme.primary} />
         </Animated.View>
         <Animated.Text entering={FadeInUp.delay(100).springify().damping(15)} style={[styles.successTitle, { color: theme.text }]}>
-          Ride Offered!
+          {t('offer.dialogs.success.title')}
         </Animated.Text>
         <Animated.Text entering={FadeInUp.delay(200).springify().damping(15)} style={[styles.successSub, { color: theme.textMuted }]}>
-          Redirecting to your dashboard...
+          {t('offer.dialogs.success.message')}
         </Animated.Text>
       </View>
     );
@@ -293,7 +311,7 @@ export default function OfferRide() {
             entering={FadeInUp.delay(200).duration(800).springify()}
             style={[styles.headerTitle, { color: '#151515', marginBottom: 8 }]}
           >
-            Offer a Ride
+            {t('offer.title')}
           </Animated.Text>
         </View>
         <View style={{ padding: 24, paddingTop: 10 }}>
@@ -304,12 +322,12 @@ export default function OfferRide() {
             >
               <View style={styles.warningContent}>
                 <AlertCircle size={44} color="#b45309" />
-                <Text style={[styles.warningTitle, { color: isDark ? '#fde68a' : '#92400e' }]}>Vehicle Info Missing</Text>
+                <Text style={[styles.warningTitle, { color: isDark ? '#fde68a' : '#92400e' }]}>{t('offer.warnings.noVehicle.title')}</Text>
                 <Text style={[styles.warningText, { color: isDark ? '#d1d5db' : '#b45309' }]}>
-                  You need to add your vehicle details in your profile before you can offer a ride to the community.
+                  {t('offer.warnings.noVehicle.text')}
                 </Text>
                 <Button
-                  label="Go to Profile"
+                  label={t('offer.warnings.noVehicle.button')}
                   onPress={() => router.push('/profile')}
                   variant="black"
                   size="md"
@@ -322,14 +340,14 @@ export default function OfferRide() {
                 entering={FadeInUp.delay(300).duration(800).springify()}
                 style={[styles.formSubtitle, { color: isDark ? 'rgba(255, 255, 255, 0.5)' : 'rgba(21, 21, 21, 0.5)', fontWeight: '900', marginBottom: 32, letterSpacing: 1 }]}
               >
-                FILL IN THE TRIP DETAILS
+                {t('offer.subtitle')}
               </Animated.Text>
 
               <Animated.View entering={FadeInDown.delay(350).duration(800).springify()}>
                  <SegmentedControl 
                     options={[
-                      {label: 'Intra-City', value: 'intra', icon: <MapPin size={16} color={rideType === 'intra' ? theme.text : theme.textMuted}/>}, 
-                      {label: 'City-to-City', value: 'inter', icon: <Map size={16} color={rideType === 'inter' ? theme.text : theme.textMuted}/>}
+                      {label: t('offer.types.intra'), value: 'intra', icon: <MapPin size={16} color={rideType === 'intra' ? theme.text : theme.textMuted}/>}, 
+                      {label: t('offer.types.inter'), value: 'inter', icon: <Map size={16} color={rideType === 'inter' ? theme.text : theme.textMuted}/>}
                     ]}
                     selectedValue={rideType}
                     onValueChange={setRideType}
@@ -340,13 +358,13 @@ export default function OfferRide() {
               <Animated.View entering={FadeInDown.delay(400).duration(800).springify()}>
                 <TouchableOpacity onPress={() => openMap('start')} activeOpacity={0.7}>
                   <Input
-                    label="Departure Location"
+                    label={t('offer.fields.departure')}
                     editable={false}
                     pointerEvents="none"
                     leftIcon={<MapPin size={20} color={theme.primary} />}
                     rightIcon={<Map size={20} color={theme.textMuted} />}
                     value={formData.startLocation}
-                    placeholder="Tap to select on map"
+                    placeholder={t('offer.fields.placeholders.departure')}
                   />
                 </TouchableOpacity>
               </Animated.View>
@@ -354,13 +372,13 @@ export default function OfferRide() {
               <Animated.View entering={FadeInDown.delay(500).duration(800).springify()}>
                 <TouchableOpacity onPress={() => openMap('end')} activeOpacity={0.7}>
                   <Input
-                    label="Destination"
+                    label={t('offer.fields.destination')}
                     editable={false}
                     pointerEvents="none"
                     leftIcon={<MapPin size={20} color="#ef4444" />}
                     rightIcon={<Map size={20} color={theme.textMuted} />}
                     value={formData.endLocation}
-                    placeholder="Tap to select on map"
+                    placeholder={t('offer.fields.placeholders.destination')}
                   />
                 </TouchableOpacity>
               </Animated.View>
@@ -370,13 +388,13 @@ export default function OfferRide() {
               >
                 <TouchableOpacity onPress={() => setShowDatePicker(true)} activeOpacity={0.7}>
                   <Input
-                    label="Departure Time"
+                    label={t('offer.fields.time')}
                     editable={false}
                     pointerEvents="none"
                     leftIcon={<Calendar size={20} color={theme.textMuted} />}
                     rightIcon={<Clock size={20} color={theme.textMuted} />}
                     value={dateSelected ? `${date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}, ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : ""}
-                    placeholder="Select Date & Time"
+                    placeholder={t('offer.fields.placeholders.time')}
                   />
                 </TouchableOpacity>
               </Animated.View>
@@ -396,7 +414,7 @@ export default function OfferRide() {
                   <View style={[styles.modalContent, { backgroundColor: theme.surface }]}>
                     <TouchableOpacity activeOpacity={1} style={{ width: '100%' }}>
                       <View style={styles.modalHeader}>
-                        <Text style={[styles.modalTitle, { color: theme.text }]}>Select Time</Text>
+                        <Text style={[styles.modalTitle, { color: theme.text }]}>{t('offer.actions.confirmTime')}</Text>
                         <TouchableOpacity onPress={() => setShowTimePicker(false)} style={{ padding: 8, marginRight: -8 }}>
                           <X size={24} color={theme.text} />
                         </TouchableOpacity>
@@ -444,8 +462,6 @@ export default function OfferRide() {
                               value = i * 5;
                             }
                             
-                            // Calculate position based on angle
-                            // 0 index is 12 o'clock (top), so angle starts at -90deg (or -PI/2)
                             const angle = (i * 30 - 90) * (Math.PI / 180);
                             const x = NUMBER_RADIUS * Math.cos(angle);
                             const y = NUMBER_RADIUS * Math.sin(angle);
@@ -454,14 +470,13 @@ export default function OfferRide() {
                               ? (date.getHours() % 12 || 12) === value
                               : date.getMinutes() === value;
 
-                            // For minutes, only exact 5-min increments have explicit numbers in the circle renderer, but allow clicking near them. Let's make it simple: 
                             return (
                               <TouchableOpacity
                                 key={`clock-${value}`}
                                 style={[
                                   styles.clockNumberContainer, 
                                   {
-                                    left: CLOCK_RADIUS + x - 20, // 20 is half the width of the container
+                                    left: CLOCK_RADIUS + x - 20, 
                                     top: CLOCK_RADIUS + y - 20,
                                   },
                                   isSelected && { backgroundColor: theme.primary }
@@ -476,7 +491,6 @@ export default function OfferRide() {
                                     newDate.setHours(newH);
                                     setDate(newDate);
                                     setDateSelected(true);
-                                    // Auto-advance to minutes
                                     setTimeout(() => setTimePickerMode('minutes'), 300);
                                   } else {
                                     newDate.setMinutes(value);
@@ -535,7 +549,7 @@ export default function OfferRide() {
                       </View>
                       
                       <Button
-                        label="Confirm Time"
+                        label={t('offer.actions.confirmTime')}
                         variant="black"
                         size="lg"
                         onPress={() => setShowTimePicker(false)}
@@ -551,7 +565,7 @@ export default function OfferRide() {
               >
                 <View style={{ flex: 1 }}>
                   <Input
-                    label="Seats"
+                    label={t('offer.fields.seats')}
                     value={formData.availableSeats}
                     onChangeText={(text) => setFormData({ ...formData, availableSeats: text })}
                     keyboardType="numeric"
@@ -562,10 +576,10 @@ export default function OfferRide() {
 
               <Animated.View entering={FadeInDown.delay(800).duration(800).springify()}>
                 <Input
-                  label="Additional Notes"
+                  label={t('offer.fields.notes')}
                   value={formData.description}
                   onChangeText={(text) => setFormData({ ...formData, description: text })}
-                  placeholder="Any rules or pickup details?"
+                  placeholder={t('offer.fields.placeholders.notes')}
                   multiline
                   numberOfLines={3}
                 />
@@ -574,7 +588,7 @@ export default function OfferRide() {
               <Animated.View entering={FadeInDown.delay(850).duration(800).springify()}>
                 <View style={[styles.sectionHeader, { marginTop: 12 }]}>
                   <ShieldCheck size={18} color={theme.primary} />
-                  <Text style={[styles.sectionTitle, { color: theme.text }]}>Trust & Safety</Text>
+                  <Text style={[styles.sectionTitle, { color: theme.text }]}>{t('offer.safety.title')}</Text>
                 </View>
                 
                 <Card style={[styles.restrictionCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
@@ -584,8 +598,8 @@ export default function OfferRide() {
                     activeOpacity={0.7}
                   >
                     <View style={styles.restrictionInfo}>
-                      <Text style={[styles.restrictionLabel, { color: theme.text }]}>Verified Photo Required</Text>
-                      <Text style={[styles.restrictionSub, { color: theme.textMuted }]}>Only people with profile pictures can book</Text>
+                      <Text style={[styles.restrictionLabel, { color: theme.text }]}>{t('offer.safety.photoRequired')}</Text>
+                      <Text style={[styles.restrictionSub, { color: theme.textMuted }]}>{t('offer.safety.photoSub')}</Text>
                     </View>
                     <View style={[styles.toggle, { backgroundColor: formData.requirePhoto ? theme.primary : (isDark ? '#333' : '#e5e7eb') }]}>
                       <View style={[styles.toggleThumb, { transform: [{ translateX: formData.requirePhoto ? 20 : 0 }] }]} />
@@ -596,8 +610,8 @@ export default function OfferRide() {
 
                   <View style={styles.restrictionRow}>
                     <View style={styles.restrictionInfo}>
-                      <Text style={[styles.restrictionLabel, { color: theme.text }]}>Minimum Rating</Text>
-                      <Text style={[styles.restrictionSub, { color: theme.textMuted }]}>Require a minimum star rating to book</Text>
+                      <Text style={[styles.restrictionLabel, { color: theme.text }]}>{t('offer.safety.minRating')}</Text>
+                      <Text style={[styles.restrictionSub, { color: theme.textMuted }]}>{t('offer.safety.minRatingSub')}</Text>
                     </View>
                     <View style={styles.ratingSelector}>
                       {['0', '3', '4', '4.5'].map((r) => (
@@ -611,7 +625,7 @@ export default function OfferRide() {
                           ]}
                         >
                           <Text style={[styles.ratingOptionText, { color: formData.minRating === r ? '#151515' : theme.text }]}>
-                            {r === '0' ? 'None' : `${r}★`}
+                            {r === '0' ? t('common.none') : `${r}★`}
                           </Text>
                         </TouchableOpacity>
                       ))}
@@ -622,7 +636,7 @@ export default function OfferRide() {
 
               <Animated.View entering={FadeInDown.delay(900).duration(800).springify()}>
                 <Button
-                  label="Post Ride Offer"
+                  label={t('offer.actions.submit')}
                   variant="black"
                   size="lg"
                   icon={<Plus size={24} color={isDark ? theme.primary : '#fff'} />}
@@ -651,7 +665,7 @@ export default function OfferRide() {
           <View style={[styles.modalContent, { backgroundColor: theme.surface }]}>
             <TouchableOpacity activeOpacity={1} style={{ width: '100%' }}>
               <View style={styles.modalHeader}>
-                <Text style={[styles.modalTitle, { color: theme.text }]}>Select Date</Text>
+                <Text style={[styles.modalTitle, { color: theme.text }]}>{t('offer.actions.confirmDate')}</Text>
                 <TouchableOpacity onPress={() => setShowDatePicker(false)} style={{ padding: 8, marginRight: -8 }}>
                   <X size={24} color={theme.text} />
                 </TouchableOpacity>
@@ -710,7 +724,7 @@ export default function OfferRide() {
               </ScrollView>
 
               <Button
-                label="Confirm Selection"
+                label={t('offer.actions.confirmDate')}
                 variant="black"
                 size="lg"
                 onPress={() => setShowDatePicker(false)}
@@ -774,7 +788,7 @@ export default function OfferRide() {
 
           <View style={styles.mapOverlayBottom}>
             <Button
-              label={`Confirm ${pickingMode === 'start' ? 'Departure' : 'Destination'}`}
+              label={t('offer.actions.confirmMap', { mode: pickingMode === 'start' ? t('offer.fields.departure') : t('offer.fields.destination') })}
               variant="black"
               size="lg"
               onPress={handleMapConfirm}
