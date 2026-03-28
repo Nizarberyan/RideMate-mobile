@@ -25,7 +25,9 @@ export default {
     },
     android: {
       package: "com.ridemate.app",
-      googleServicesFile: "./google-services.json",
+      googleServicesFile: process.env.GOOGLE_SERVICES_BASE64 
+        ? "./google-services.json" // EAS will automatically place the secret here if configured in eas.json
+        : "./google-services.json",
       permissions: [
         "ACCESS_COARSE_LOCATION",
         "ACCESS_FINE_LOCATION",
